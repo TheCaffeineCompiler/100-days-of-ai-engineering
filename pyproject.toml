@@ -1,0 +1,69 @@
+[project]
+name = "challenge"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "litellm>=1.86.2",
+    "python-dotenv>=1.2.2",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.14",
+    "pre-commit>=4.0",
+    "ruff>=0.9",
+]
+
+# --- Ruff -------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# Strong baseline. See https://docs.astral.sh/ruff/rules/ for codes.
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "A",   # flake8-builtins
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "PTH", # flake8-use-pathlib
+    "RUF", # ruff-specific
+    "S",   # flake8-bandit (security)
+    "TID", # flake8-tidy-imports
+    "PT",  # flake8-pytest-style
+    "RET", # flake8-return
+    "ARG", # flake8-unused-arguments
+]
+ignore = [
+    "E501", # line length is handled by the formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"] # allow `assert` in tests
+
+[tool.ruff.format]
+quote-style = "double"
+
+# --- Mypy -------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+pretty = true
+
+[[tool.mypy.overrides]]
+# litellm's type coverage is incomplete; don't fail on its internals.
+module = "litellm.*"
+ignore_missing_imports = true
