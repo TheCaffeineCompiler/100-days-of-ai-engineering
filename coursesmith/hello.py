@@ -2,22 +2,21 @@ import argparse
 import os
 
 from dotenv import load_dotenv
-from litellm import completion
+
+from coursesmith.use_cases.create_course_outline.course_outline_service import CourseOutlineService
 
 
-def main(prompt: str) -> None:
+def main(title: str) -> None:
     load_dotenv()
-    messages = [{"role": "user", "content": prompt}]
-    response = completion(
+    service = CourseOutlineService(
         model=os.getenv("LITELLM_MODEL", "not-provided"),
-        api_key=os.getenv("LITELLM_API_KEY"),
-        messages=messages,
+        api_key=os.getenv("LITELLM_API_KEY", "not-provided"),
     )
-    print(response.choices[0].message.content)
+    print(service.create(title))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("prompt")
+    parser.add_argument("title")
     args = parser.parse_args()
-    main(args.prompt)
+    main(args.title)

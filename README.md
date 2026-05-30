@@ -1,9 +1,13 @@
 # CourseSmith
 
-A 100-day AI engineering challenge project. Day 1 stands up a minimal repo that
-makes a single LLM call through [LiteLLM](https://docs.litellm.ai/), so the
-underlying provider and model can be swapped by editing `.env` only — no code
-changes.
+A 100-day AI engineering challenge project. The app generates structured
+course outlines from a single topic string by calling an LLM through
+[LiteLLM](https://docs.litellm.ai/) and validating the response against a
+[Pydantic](https://docs.pydantic.dev/) schema. The underlying provider and
+model can be swapped by editing `.env` only — no code changes.
+
+See [`docs/index.md`](docs/index.md) for the day-by-day log of what each
+challenge added.
 
 ## Requirements
 
@@ -51,13 +55,18 @@ changes.
 
 ## Run
 
-Send a prompt through the configured model:
+Generate a course outline for a topic:
 
 ```sh
-uv run python -m coursesmith.hello "ping"
+uv run python -m coursesmith.hello "AI engineering for backend developers"
 ```
 
-The completion is printed to stdout.
+The CLI calls `CourseOutlineService.create(...)`, which asks the LLM for a
+multi-day outline in structured-output mode and validates the response into a
+`CourseOutline` Pydantic model. The validated object is printed to stdout.
+
+If the model returns JSON that doesn't match the schema, `pydantic.ValidationError`
+propagates up with field-level details — no silent fallbacks.
 
 ## Swap providers
 
@@ -97,14 +106,23 @@ every push and pull request.
 .
 ├── coursesmith/
 │   ├── __init__.py
-│   └── hello.py        # CLI entry: python -m coursesmith.hello "<prompt>"
+│   ├── hello.py                          # CLI entry: python -m coursesmith.hello "<topic>"
+│   └── use_cases/
+│       └── create_course_outline/
+│           ├── course_outline_service.py # LiteLLM call + Pydantic validation
+│           └── models/
+│               └── course_outline.py     # CourseOutline + DayItem Pydantic models
 ├── docs/
-│   ├── index.md        # Challenge index
-│   └── day_001.md      # Day 1 write-up
+│   ├── index.md                          # Challenge index
+│   ├── day_001.md                        # Day 1 write-up
+│   └── day_002.md                        # Day 2 write-up
 ├── .github/workflows/
-│   └── ci.yml          # Lint + format + types on push/PR
+│   └── ci.yml                            # Lint + format + types on push/PR
 ├── .pre-commit-config.yaml
-├── .env.sample         # Template for local .env (gitignored)
+├── .env.sample                           # Template for local .env (gitignored)
 ├── pyproject.toml
 └── README.md
 ```
+
+Each new day's work goes under `coursesmith/use_cases/<feature_name>/` so the
+package grows by addition rather than edits to a single file.
