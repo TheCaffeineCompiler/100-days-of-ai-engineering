@@ -1,27 +1,25 @@
 from litellm import completion
 
 from coursesmith.use_cases.create_course_outline.models.course_outline import CourseOutline
-
-_prompt = """
-Please create a course outline spanning multiple days for the following topic:
-
-{topic}
-
-Each day should have an objective and a list of tasks to be completed.
-"""
+from coursesmith.use_cases.shared.ports.prompts_port import PromptsPort
 
 
 class CourseOutlineService:
+    PROMPT_NAME = "course_outline"
+
     def __init__(
         self,
         model: str,
         api_key: str,
+        prompts_port: PromptsPort,
+        prompt_version: int,
     ):
         self._model = model
         self._api_key = api_key
+        self._prompt = prompts_port.get_prompt(name=self.PROMPT_NAME, version=prompt_version)
 
     def create(self, title: str) -> CourseOutline:
-        prompt = _prompt.format(topic=title)
+        prompt = self._prompt.format(topic=title)
         messages = [{"role": "user", "content": prompt}]
         result = completion(
             messages=messages,

@@ -1,0 +1,5 @@
+Please create a course outline spanning multiple days for the following topic:
+
+{topic}
+
+Each day should have an objective and a list of tasks to be completed.

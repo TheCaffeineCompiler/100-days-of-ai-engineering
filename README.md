@@ -42,6 +42,7 @@ challenge added.
    ```sh
    LITELLM_MODEL=openai/gpt-4o-mini
    LITELLM_API_KEY=sk-...
+   COURSE_OUTLINE_PROMPT_VERSION=1
    ```
 
    `LITELLM_MODEL` uses LiteLLM's `provider/model` format. Examples:
@@ -52,6 +53,14 @@ challenge added.
 
    See the [LiteLLM provider list](https://docs.litellm.ai/docs/providers) for
    the full set.
+
+   `COURSE_OUTLINE_PROMPT_VERSION` selects which prompt template under
+   `resources/prompts/course_outline/v<N>.prompt.txt` the service uses. See
+   [Prompts](#prompts) below.
+
+   All three variables are required — `Settings` is a `pydantic-settings`
+   `BaseSettings` with no defaults, so a missing var raises a clear
+   `ValidationError` at startup rather than failing later in the call.
 
 ## Run
 
@@ -79,15 +88,61 @@ LITELLM_API_KEY=sk-ant-...
 
 Re-run the same command — no code changes required.
 
+## Prompts
+
+Prompts live as plain text files under `resources/prompts/<name>/v<version>.prompt.txt`,
+addressed by `(name, version)` through a small port/adapter pair:
+
+- **`PromptsPort`** (`coursesmith/use_cases/shared/ports/prompts_port.py`) — the
+  interface use-case services depend on.
+- **`PromptsAdapter`** (`coursesmith/infrastructure/shared/adapters/prompts_adapter.py`) —
+  the file-backed implementation. Resolves `(name, version)` to
+  `<base_path>/<name>/v<version>.prompt.txt`.
+
+Each service owns its prompt *name* as a class constant; the *version* comes
+from configuration. To roll out a new prompt revision:
+
+1. Add `resources/prompts/<name>/v<N+1>.prompt.txt`.
+2. Bump the corresponding env var (e.g. `COURSE_OUTLINE_PROMPT_VERSION=2`).
+3. Re-run — no `.py` edits.
+
+The old version stays on disk, so swaps are reversible.
+
+## Architecture
+
+The package follows a hexagonal (ports & adapters) layout under `coursesmith/`:
+
+- **`use_cases/`** — application logic. Each feature is a folder containing
+  a service, its Pydantic models, and any feature-private interfaces.
+  Cross-feature interfaces live under `use_cases/shared/ports/`.
+- **`infrastructure/`** — concrete implementations of the ports
+  (file system, HTTP, LLM providers, …). Cross-feature adapters live under
+  `infrastructure/shared/adapters/`.
+- **`settings.py`** — env-driven configuration via `pydantic-settings`.
+- **`hello.py`** — CLI entry point. Wires settings, adapters, and the service
+  together; everything else only depends on ports.
+
+## Tests
+
+```sh
+uv run pytest
+```
+
+Test files mirror the package layout under `tests/`. Pytest is configured in
+`pyproject.toml` (`pythonpath = ["."]`, `testpaths = ["tests"]`), so no build
+backend is required to make the project importable from tests.
+
 ## Code quality
 
-Three gates run locally (via pre-commit) and in CI:
+Four gates run locally (via pre-commit) and in CI:
 
 - **Ruff** (`uv run ruff check`, `uv run ruff format`) — lint + format with a
   strong rule set (`E, W, F, I, N, UP, B, A, C4, SIM, PTH, RUF, S, TID, PT,
   RET, ARG`). Config in `pyproject.toml`.
 - **Mypy** (`uv run mypy coursesmith`) — `strict = true`, plus
-  `warn_unreachable`, `warn_redundant_casts`, `warn_unused_ignores`.
+  `warn_unreachable`, `warn_redundant_casts`, `warn_unused_ignores`, and the
+  `pydantic.mypy` plugin so `BaseSettings` constructors type-check correctly.
+- **Pytest** (`uv run pytest`) — unit and contract tests under `tests/`.
 - **Standard pre-commit hooks** — trailing whitespace, EOF newline, YAML/TOML
   syntax, large-file guard, merge-conflict markers, private-key detection.
 
@@ -95,27 +150,47 @@ Run everything against the whole repo:
 
 ```sh
 uv run pre-commit run --all-files
+uv run pytest
 ```
 
-The GitHub Action at `.github/workflows/ci.yml` runs the same three gates on
-every push and pull request.
+The GitHub Action at `.github/workflows/ci.yml` runs all four gates on every
+push and pull request. Gates are independent — a failure in one doesn't skip
+the rest, so a single CI run surfaces every problem at once. Each run
+produces a job summary with a pass/fail table and the full output of each
+gate (failing gates auto-expanded).
 
 ## Project layout
 
 ```
 .
 ├── coursesmith/
-│   ├── __init__.py
+│   ├── __init__.py                       # Exports RESOURCES_DIR (repo-relative)
 │   ├── hello.py                          # CLI entry: python -m coursesmith.hello "<topic>"
-│   └── use_cases/
-│       └── create_course_outline/
-│           ├── course_outline_service.py # LiteLLM call + Pydantic validation
-│           └── models/
-│               └── course_outline.py     # CourseOutline + DayItem Pydantic models
+│   ├── settings.py                       # pydantic-settings BaseSettings
+│   ├── use_cases/
+│   │   ├── shared/
+│   │   │   └── ports/
+│   │   │       └── prompts_port.py       # PromptsPort interface
+│   │   └── create_course_outline/
+│   │       ├── course_outline_service.py # LiteLLM call + Pydantic validation
+│   │       └── models/
+│   │           └── course_outline.py     # CourseOutline + DayItem Pydantic models
+│   └── infrastructure/
+│       └── shared/
+│           └── adapters/
+│               └── prompts_adapter.py    # File-backed PromptsPort
+├── resources/
+│   └── prompts/
+│       └── course_outline/
+│           └── v1.prompt.txt             # Versioned prompt templates
+├── tests/                                # Mirrors the package layout
+│   └── infrastructure/shared/adapters/
+│       └── test_prompts_adapter.py
 ├── docs/
 │   ├── index.md                          # Challenge index
 │   ├── day_001.md                        # Day 1 write-up
-│   └── day_002.md                        # Day 2 write-up
+│   ├── day_002.md                        # Day 2 write-up
+│   └── day_003.md                        # Day 3 write-up
 ├── .github/workflows/
 │   └── ci.yml                            # Lint + format + types on push/PR
 ├── .pre-commit-config.yaml
@@ -124,5 +199,6 @@ every push and pull request.
 └── README.md
 ```
 
-Each new day's work goes under `coursesmith/use_cases/<feature_name>/` so the
-package grows by addition rather than edits to a single file.
+Each new day's work goes under `coursesmith/use_cases/<feature_name>/` (plus
+any new ports/adapters in the corresponding `shared/` trees) so the package
+grows by addition rather than edits to a single file.

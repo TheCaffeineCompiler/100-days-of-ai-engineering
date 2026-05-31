@@ -11,8 +11,9 @@ concurrency:
 
 jobs:
   quality:
-    name: Lint, format, types
+    name: Quality gates
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -25,13 +26,94 @@ jobs:
         run: uv python install
 
       - name: Install dependencies
-        run: uv sync --all-extras --dev
+        run: uv sync --dev
+
+      # ---------------------------------------------------------------------
+      # Checks. Each runs even if a previous one failed, so a single CI run
+      # surfaces every problem at once instead of one-per-push.
+      # ---------------------------------------------------------------------
 
       - name: Ruff lint
-        run: uv run ruff check --output-format=github
+        id: ruff_lint
+        continue-on-error: true
+        run: uv run ruff check --output-format=github 2>&1 | tee ruff_lint.log
 
-      - name: Ruff format check
-        run: uv run ruff format --check
+      - name: Ruff format
+        id: ruff_format
+        continue-on-error: true
+        run: uv run ruff format --check --diff 2>&1 | tee ruff_format.log
 
       - name: Mypy
-        run: uv run mypy coursesmith
+        id: mypy
+        continue-on-error: true
+        run: uv run mypy coursesmith 2>&1 | tee mypy.log
+
+      - name: Pytest
+        id: pytest
+        continue-on-error: true
+        run: uv run pytest -v 2>&1 | tee pytest.log
+
+      # ---------------------------------------------------------------------
+      # Render a markdown summary on the GitHub Actions run page:
+      #   - a top-of-page status table for every gate,
+      #   - each gate's full output in a collapsible <details> block,
+      #     auto-expanded for failing gates.
+      # ---------------------------------------------------------------------
+
+      - name: Job summary
+        if: always()
+        env:
+          RUFF_LINT_OUTCOME: ${{ steps.ruff_lint.outcome }}
+          RUFF_FORMAT_OUTCOME: ${{ steps.ruff_format.outcome }}
+          MYPY_OUTCOME: ${{ steps.mypy.outcome }}
+          PYTEST_OUTCOME: ${{ steps.pytest.outcome }}
+        run: |
+          icon() { [ "$1" = "success" ] && echo "✅" || echo "❌"; }
+
+          {
+            echo "## Quality gates"
+            echo ""
+            echo "| Check        | Status |"
+            echo "|--------------|--------|"
+            echo "| Ruff lint    | $(icon "$RUFF_LINT_OUTCOME")    $RUFF_LINT_OUTCOME |"
+            echo "| Ruff format  | $(icon "$RUFF_FORMAT_OUTCOME")  $RUFF_FORMAT_OUTCOME |"
+            echo "| Mypy         | $(icon "$MYPY_OUTCOME")         $MYPY_OUTCOME |"
+            echo "| Pytest       | $(icon "$PYTEST_OUTCOME")       $PYTEST_OUTCOME |"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for entry in \
+            "Ruff lint:ruff_lint.log:$RUFF_LINT_OUTCOME" \
+            "Ruff format:ruff_format.log:$RUFF_FORMAT_OUTCOME" \
+            "Mypy:mypy.log:$MYPY_OUTCOME" \
+            "Pytest:pytest.log:$PYTEST_OUTCOME"; do
+            IFS=: read -r name file outcome <<< "$entry"
+            [ -f "$file" ] || continue
+            open_attr=""
+            [ "$outcome" != "success" ] && open_attr=" open"
+            {
+              echo "<details$open_attr><summary>$(icon "$outcome") $name output</summary>"
+              echo ""
+              echo '```'
+              cat "$file"
+              echo '```'
+              echo ""
+              echo "</details>"
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      # ---------------------------------------------------------------------
+      # Fail the job if any gate failed. Runs after the summary so the
+      # overview is always rendered, even on failure.
+      # ---------------------------------------------------------------------
+
+      - name: Verify all gates passed
+        if: |
+          steps.ruff_lint.outcome    != 'success' ||
+          steps.ruff_format.outcome  != 'success' ||
+          steps.mypy.outcome         != 'success' ||
+          steps.pytest.outcome       != 'success'
+        run: |
+          echo "::error::One or more quality gates failed. See the job summary for details."
+          exit 1
