@@ -2,9 +2,10 @@
 
 A 100-day AI engineering challenge project. The app generates structured
 course outlines from a single topic string by calling an LLM through
-[LiteLLM](https://docs.litellm.ai/) and validating the response against a
-[Pydantic](https://docs.pydantic.dev/) schema. The underlying provider and
-model can be swapped by editing `.env` only — no code changes.
+[LiteLLM](https://docs.litellm.ai/), validating the response against a
+[Pydantic](https://docs.pydantic.dev/) schema, and serving it over HTTP via
+[FastAPI](https://fastapi.tiangolo.com/). The underlying provider and model
+can be swapped by editing `.env` only — no code changes.
 
 See [`docs/index.md`](docs/index.md) for the day-by-day log of what each
 challenge added.
@@ -64,18 +65,32 @@ challenge added.
 
 ## Run
 
-Generate a course outline for a topic:
+Start the API:
 
 ```sh
-uv run python -m coursesmith.hello "AI engineering for backend developers"
+uv run fastapi dev coursesmith/app.py
 ```
 
-The CLI calls `CourseOutlineService.create(...)`, which asks the LLM for a
-multi-day outline in structured-output mode and validates the response into a
-`CourseOutline` Pydantic model. The validated object is printed to stdout.
+(Or `uv run uvicorn coursesmith.app:app --reload` if you prefer uvicorn
+directly.)
 
-If the model returns JSON that doesn't match the schema, `pydantic.ValidationError`
-propagates up with field-level details — no silent fallbacks.
+- Swagger UI: <http://localhost:8000/docs>
+- Generate a course outline:
+
+  ```sh
+  curl -X POST http://localhost:8000/courses \
+       -H 'Content-Type: application/json' \
+       -d '{"topic": "AI engineering for backend developers"}'
+  ```
+
+The endpoint dispatches to `CourseOutlineService.create(...)`, which asks the
+LLM for a multi-day outline in structured-output mode and validates the
+response into a `CourseOutline` Pydantic model. The validated object is
+returned as JSON.
+
+If the model returns JSON that doesn't match the schema,
+`pydantic.ValidationError` propagates and FastAPI turns it into a 500 — no
+silent fallbacks.
 
 ## Swap providers
 
@@ -86,7 +101,7 @@ LITELLM_MODEL=anthropic/claude-haiku-4-5
 LITELLM_API_KEY=sk-ant-...
 ```
 
-Re-run the same command — no code changes required.
+Restart the server — no code changes required.
 
 ## Prompts
 
@@ -115,12 +130,14 @@ The package follows a hexagonal (ports & adapters) layout under `coursesmith/`:
 - **`use_cases/`** — application logic. Each feature is a folder containing
   a service, its Pydantic models, and any feature-private interfaces.
   Cross-feature interfaces live under `use_cases/shared/ports/`.
-- **`infrastructure/`** — concrete implementations of the ports
-  (file system, HTTP, LLM providers, …). Cross-feature adapters live under
-  `infrastructure/shared/adapters/`.
-- **`settings.py`** — env-driven configuration via `pydantic-settings`.
-- **`hello.py`** — CLI entry point. Wires settings, adapters, and the service
-  together; everything else only depends on ports.
+- **`infrastructure/adapters/inbound/<transport>/`** — handlers that translate
+  incoming traffic into use-case calls (today: `rest/`).
+- **`infrastructure/shared/adapters/`** — outbound adapters that implement
+  use-case ports (today: file-backed prompts).
+- **`settings.py`** — env-driven configuration via `pydantic-settings`,
+  reading from `.env` automatically.
+- **`app.py`** — FastAPI composition root. Mounts inbound routers and is the
+  ASGI entry point for `uvicorn` / `fastapi dev`.
 
 ## Tests
 
@@ -165,17 +182,21 @@ gate (failing gates auto-expanded).
 .
 ├── coursesmith/
 │   ├── __init__.py                       # Exports RESOURCES_DIR (repo-relative)
-│   ├── hello.py                          # CLI entry: python -m coursesmith.hello "<topic>"
-│   ├── settings.py                       # pydantic-settings BaseSettings
+│   ├── app.py                            # FastAPI composition root
+│   ├── settings.py                       # pydantic-settings BaseSettings (.env-aware)
 │   ├── use_cases/
 │   │   ├── shared/
 │   │   │   └── ports/
 │   │   │       └── prompts_port.py       # PromptsPort interface
 │   │   └── create_course_outline/
-│   │       ├── course_outline_service.py # LiteLLM call + Pydantic validation
+│   │       ├── course_outline_service.py # acompletion + Pydantic validation
 │   │       └── models/
 │   │           └── course_outline.py     # CourseOutline + DayItem Pydantic models
 │   └── infrastructure/
+│       ├── adapters/
+│       │   └── inbound/
+│       │       └── rest/
+│       │           └── create_course_outline_adapter.py  # POST /courses
 │       └── shared/
 │           └── adapters/
 │               └── prompts_adapter.py    # File-backed PromptsPort
@@ -184,15 +205,18 @@ gate (failing gates auto-expanded).
 │       └── course_outline/
 │           └── v1.prompt.txt             # Versioned prompt templates
 ├── tests/                                # Mirrors the package layout
+│   ├── infrastructure/adapters/inbound/rest/
+│   │   └── test_create_course_outline_adapter.py
 │   └── infrastructure/shared/adapters/
 │       └── test_prompts_adapter.py
 ├── docs/
 │   ├── index.md                          # Challenge index
 │   ├── day_001.md                        # Day 1 write-up
 │   ├── day_002.md                        # Day 2 write-up
-│   └── day_003.md                        # Day 3 write-up
+│   ├── day_003.md                        # Day 3 write-up
+│   └── day_004.md                        # Day 4 write-up
 ├── .github/workflows/
-│   └── ci.yml                            # Lint + format + types on push/PR
+│   └── ci.yml                            # Lint + format + types + tests on push/PR
 ├── .pre-commit-config.yaml
 ├── .env.sample                           # Template for local .env (gitignored)
 ├── pyproject.toml
@@ -200,5 +224,6 @@ gate (failing gates auto-expanded).
 ```
 
 Each new day's work goes under `coursesmith/use_cases/<feature_name>/` (plus
-any new ports/adapters in the corresponding `shared/` trees) so the package
-grows by addition rather than edits to a single file.
+any new ports/adapters in the corresponding `shared/` or
+`inbound/<transport>/` trees) so the package grows by addition rather than
+edits to a single file.

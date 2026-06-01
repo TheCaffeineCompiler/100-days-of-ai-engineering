@@ -1,4 +1,4 @@
-from litellm import completion
+from litellm import acompletion
 
 from coursesmith.use_cases.create_course_outline.models.course_outline import CourseOutline
 from coursesmith.use_cases.shared.ports.prompts_port import PromptsPort
@@ -18,10 +18,10 @@ class CourseOutlineService:
         self._api_key = api_key
         self._prompt = prompts_port.get_prompt(name=self.PROMPT_NAME, version=prompt_version)
 
-    def create(self, title: str) -> CourseOutline:
-        prompt = self._prompt.format(topic=title)
+    async def create(self, topic: str) -> CourseOutline:
+        prompt = self._prompt.format(topic=topic)
         messages = [{"role": "user", "content": prompt}]
-        result = completion(
+        result = await acompletion(
             messages=messages,
             model=self._model,
             api_key=self._api_key,
