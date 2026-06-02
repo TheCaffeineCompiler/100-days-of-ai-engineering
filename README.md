@@ -75,7 +75,7 @@ uv run fastapi dev coursesmith/app.py
 directly.)
 
 - Swagger UI: <http://localhost:8000/docs>
-- Generate a course outline:
+- Generate a course outline (single JSON response):
 
   ```sh
   curl -X POST http://localhost:8000/courses \
@@ -83,14 +83,28 @@ directly.)
        -d '{"topic": "AI engineering for backend developers"}'
   ```
 
-The endpoint dispatches to `CourseOutlineService.create(...)`, which asks the
-LLM for a multi-day outline in structured-output mode and validates the
-response into a `CourseOutline` Pydantic model. The validated object is
-returned as JSON.
+  Dispatches to `CourseOutlineService.create(...)`, which asks the LLM for a
+  multi-day outline in structured-output mode and validates the response into
+  a `CourseOutline` Pydantic model. The validated object is returned as JSON.
 
-If the model returns JSON that doesn't match the schema,
-`pydantic.ValidationError` propagates and FastAPI turns it into a 500 — no
-silent fallbacks.
+  If the model returns JSON that doesn't match the schema,
+  `pydantic.ValidationError` propagates and FastAPI turns it into a 500 — no
+  silent fallbacks.
+
+- Stream the response as SSE (use `curl -N` to disable buffering):
+
+  ```sh
+  curl -N -X POST http://localhost:8000/courses/stream \
+       -H 'Content-Type: application/json' \
+       -d '{"topic": "AI engineering for backend developers"}'
+  ```
+
+  Dispatches to `CourseOutlineService.create_stream(...)`, which forwards
+  each LLM delta as a `text/event-stream` event: `event: token / data:
+  "<token>"` per chunk, followed by `event: done / data: [DONE]` when the
+  stream completes. Tokens arrive incrementally rather than after the full
+  response. There is no schema enforcement on this path — streaming and
+  structured-output guarantees are mutually exclusive.
 
 ## Swap providers
 
@@ -189,14 +203,14 @@ gate (failing gates auto-expanded).
 │   │   │   └── ports/
 │   │   │       └── prompts_port.py       # PromptsPort interface
 │   │   └── create_course_outline/
-│   │       ├── course_outline_service.py # acompletion + Pydantic validation
+│   │       ├── course_outline_service.py # acompletion + Pydantic validation; streaming via async generator
 │   │       └── models/
 │   │           └── course_outline.py     # CourseOutline + DayItem Pydantic models
 │   └── infrastructure/
 │       ├── adapters/
 │       │   └── inbound/
 │       │       └── rest/
-│       │           └── create_course_outline_adapter.py  # POST /courses
+│       │           └── create_course_outline_adapter.py  # POST /courses + POST /courses/stream (SSE)
 │       └── shared/
 │           └── adapters/
 │               └── prompts_adapter.py    # File-backed PromptsPort
@@ -206,7 +220,8 @@ gate (failing gates auto-expanded).
 │           └── v1.prompt.txt             # Versioned prompt templates
 ├── tests/                                # Mirrors the package layout
 │   ├── infrastructure/adapters/inbound/rest/
-│   │   └── test_create_course_outline_adapter.py
+│   │   ├── test_create_course_outline_adapter.py
+│   │   └── test_create_course_outline_stream.py
 │   └── infrastructure/shared/adapters/
 │       └── test_prompts_adapter.py
 ├── docs/
@@ -214,7 +229,8 @@ gate (failing gates auto-expanded).
 │   ├── day_001.md                        # Day 1 write-up
 │   ├── day_002.md                        # Day 2 write-up
 │   ├── day_003.md                        # Day 3 write-up
-│   └── day_004.md                        # Day 4 write-up
+│   ├── day_004.md                        # Day 4 write-up
+│   └── day_005.md                        # Day 5 write-up
 ├── .github/workflows/
 │   └── ci.yml                            # Lint + format + types + tests on push/PR
 ├── .pre-commit-config.yaml

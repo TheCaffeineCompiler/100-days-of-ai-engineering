@@ -1,6 +1,8 @@
+from collections.abc import AsyncIterable
 from functools import lru_cache
 
 from fastapi import APIRouter, Depends
+from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel
 
 from coursesmith import RESOURCES_DIR
@@ -34,3 +36,14 @@ async def create_course_outline(
     service: CourseOutlineService = Depends(get_service),
 ) -> CourseOutline:
     return await service.create(topic=request.topic)
+
+
+@router.post("/stream", response_class=EventSourceResponse)
+async def stream_create_course_outline(
+    request: CreateCourseOutlineRequest,
+    service: CourseOutlineService = Depends(get_service),
+) -> AsyncIterable[ServerSentEvent]:
+    words = service.create_stream(topic=request.topic)
+    async for word in words:
+        yield ServerSentEvent(data=word, event="token")
+    yield ServerSentEvent(raw_data="[DONE]", event="done")

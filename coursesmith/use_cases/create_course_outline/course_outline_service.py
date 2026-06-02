@@ -1,3 +1,5 @@
+from collections.abc import AsyncGenerator
+
 from litellm import acompletion
 
 from coursesmith.use_cases.create_course_outline.models.course_outline import CourseOutline
@@ -28,3 +30,16 @@ class CourseOutlineService:
             response_format=CourseOutline,
         )
         return CourseOutline.model_validate_json(json_data=result.choices[0].message.content or "")
+
+    async def create_stream(self, topic: str) -> AsyncGenerator[str, None]:
+        prompt = self._prompt.format(topic=topic)
+        messages = [{"role": "user", "content": prompt}]
+        result = await acompletion(
+            messages=messages,
+            model=self._model,
+            api_key=self._api_key,
+            stream=True,
+        )
+        async for chunk in result:
+            if chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
