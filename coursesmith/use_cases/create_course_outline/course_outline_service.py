@@ -1,8 +1,7 @@
 from collections.abc import AsyncGenerator
 
-from litellm import acompletion
-
 from coursesmith.use_cases.create_course_outline.models.course_outline import CourseOutline
+from coursesmith.use_cases.shared.ports.llm_port import LlmPort
 from coursesmith.use_cases.shared.ports.prompts_port import PromptsPort
 
 
@@ -11,35 +10,22 @@ class CourseOutlineService:
 
     def __init__(
         self,
-        model: str,
-        api_key: str,
+        llm_port: LlmPort,
         prompts_port: PromptsPort,
         prompt_version: int,
     ):
-        self._model = model
-        self._api_key = api_key
+        self._llm_port = llm_port
         self._prompt = prompts_port.get_prompt(name=self.PROMPT_NAME, version=prompt_version)
 
     async def create(self, topic: str) -> CourseOutline:
         prompt = self._prompt.format(topic=topic)
         messages = [{"role": "user", "content": prompt}]
-        result = await acompletion(
-            messages=messages,
-            model=self._model,
-            api_key=self._api_key,
-            response_format=CourseOutline,
-        )
+        result = await self._llm_port.complete(messages=messages, response_format=CourseOutline)
         return CourseOutline.model_validate_json(json_data=result.choices[0].message.content or "")
 
     async def create_stream(self, topic: str) -> AsyncGenerator[str, None]:
         prompt = self._prompt.format(topic=topic)
         messages = [{"role": "user", "content": prompt}]
-        result = await acompletion(
-            messages=messages,
-            model=self._model,
-            api_key=self._api_key,
-            stream=True,
-        )
-        async for chunk in result:
+        async for chunk in self._llm_port.stream(messages=messages):
             if chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content

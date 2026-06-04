@@ -43,6 +43,8 @@ challenge added.
    ```sh
    LITELLM_MODEL=openai/gpt-4o-mini
    LITELLM_API_KEY=sk-...
+   LITELLM_RETRIES=3
+   LITELLM_TIMEOUT=60
    COURSE_OUTLINE_PROMPT_VERSION=1
    ```
 
@@ -55,11 +57,17 @@ challenge added.
    See the [LiteLLM provider list](https://docs.litellm.ai/docs/providers) for
    the full set.
 
+   `LITELLM_RETRIES` and `LITELLM_TIMEOUT` (seconds) control LiteLLM's
+   `Router` resilience: retries with backoff on 429/5xx, and a per-call
+   timeout that translates to a typed `LlmTimeoutError` (HTTP 504). Rate
+   limits exhausted past `LITELLM_RETRIES` surface as `LlmRateLimitError`
+   (HTTP 429). See [Day 6](docs/day_006.md).
+
    `COURSE_OUTLINE_PROMPT_VERSION` selects which prompt template under
    `resources/prompts/course_outline/v<N>.prompt.txt` the service uses. See
    [Prompts](#prompts) below.
 
-   All three variables are required — `Settings` is a `pydantic-settings`
+   All variables are required — `Settings` is a `pydantic-settings`
    `BaseSettings` with no defaults, so a missing var raises a clear
    `ValidationError` at startup rather than failing later in the call.
 
@@ -201,9 +209,10 @@ gate (failing gates auto-expanded).
 │   ├── use_cases/
 │   │   ├── shared/
 │   │   │   └── ports/
-│   │   │       └── prompts_port.py       # PromptsPort interface
+│   │   │       ├── prompts_port.py       # PromptsPort interface
+│   │   │       └── llm_port.py           # LlmPort + typed errors (LlmError/Timeout/RateLimit)
 │   │   └── create_course_outline/
-│   │       ├── course_outline_service.py # acompletion + Pydantic validation; streaming via async generator
+│   │       ├── course_outline_service.py # Depends on LlmPort + PromptsPort; streams via async generator
 │   │       └── models/
 │   │           └── course_outline.py     # CourseOutline + DayItem Pydantic models
 │   └── infrastructure/
@@ -213,7 +222,8 @@ gate (failing gates auto-expanded).
 │       │           └── create_course_outline_adapter.py  # POST /courses + POST /courses/stream (SSE)
 │       └── shared/
 │           └── adapters/
-│               └── prompts_adapter.py    # File-backed PromptsPort
+│               ├── prompts_adapter.py    # File-backed PromptsPort
+│               └── lite_llm_adapter.py   # LlmPort impl; Router with retries+timeout, typed error translation
 ├── resources/
 │   └── prompts/
 │       └── course_outline/
@@ -223,14 +233,16 @@ gate (failing gates auto-expanded).
 │   │   ├── test_create_course_outline_adapter.py
 │   │   └── test_create_course_outline_stream.py
 │   └── infrastructure/shared/adapters/
-│       └── test_prompts_adapter.py
+│       ├── test_prompts_adapter.py
+│       └── test_lite_llm_adapter.py      # Typed-error translation for complete + stream
 ├── docs/
 │   ├── index.md                          # Challenge index
 │   ├── day_001.md                        # Day 1 write-up
 │   ├── day_002.md                        # Day 2 write-up
 │   ├── day_003.md                        # Day 3 write-up
 │   ├── day_004.md                        # Day 4 write-up
-│   └── day_005.md                        # Day 5 write-up
+│   ├── day_005.md                        # Day 5 write-up
+│   └── day_006.md                        # Day 6 write-up
 ├── .github/workflows/
 │   └── ci.yml                            # Lint + format + types + tests on push/PR
 ├── .pre-commit-config.yaml

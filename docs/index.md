@@ -10,3 +10,4 @@ objective and links to the per-day write-up.
 | 3   | Prompt templating & versioning | Move prompts out of f-strings into versioned, testable templates. | [day_003.md](day_003.md) |
 | 4   | First FastAPI endpoint | Expose course generation over HTTP via `POST /courses`. | [day_004.md](day_004.md) |
 | 5   | Streaming responses | Stream tokens to the client over SSE via `POST /courses/stream`. | [day_005.md](day_005.md) |
+| 6   | Retries, timeouts & error handling | Make a single LLM call survive transient failures; surface a typed error to the caller. | [day_006.md](day_006.md) |

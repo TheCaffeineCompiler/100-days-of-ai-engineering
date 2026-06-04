@@ -6,6 +6,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel
 
 from coursesmith import RESOURCES_DIR
+from coursesmith.infrastructure.shared.adapters.lite_llm_adapter import LiteLlmAdapter
 from coursesmith.infrastructure.shared.adapters.prompts_adapter import PromptsAdapter
 from coursesmith.settings import Settings
 from coursesmith.use_cases.create_course_outline.course_outline_service import CourseOutlineService
@@ -18,9 +19,14 @@ router = APIRouter(prefix="/courses", tags=["courses"])
 def get_service() -> CourseOutlineService:
     settings = Settings()
     prompts_port = PromptsAdapter(base_path=RESOURCES_DIR)
-    return CourseOutlineService(
+    llm_port = LiteLlmAdapter(
         model=settings.litellm_model,
         api_key=settings.litellm_api_key,
+        retries=settings.litellm_retries,
+        timeout=settings.litellm_timeout,
+    )
+    return CourseOutlineService(
+        llm_port=llm_port,
         prompts_port=prompts_port,
         prompt_version=settings.course_outline_prompt_version,
     )
