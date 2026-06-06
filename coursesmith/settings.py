@@ -12,3 +12,6 @@ class Settings(BaseSettings):
 
     # Course Outline Service Settings
     course_outline_prompt_version: int
+
+
+settings = Settings()

@@ -242,7 +242,8 @@ gate (failing gates auto-expanded).
 │   ├── day_003.md                        # Day 3 write-up
 │   ├── day_004.md                        # Day 4 write-up
 │   ├── day_005.md                        # Day 5 write-up
-│   └── day_006.md                        # Day 6 write-up
+│   ├── day_006.md                        # Day 6 write-up
+│   └── day_007.md                        # Day 7 write-up
 ├── .github/workflows/
 │   └── ci.yml                            # Lint + format + types + tests on push/PR
 ├── .pre-commit-config.yaml

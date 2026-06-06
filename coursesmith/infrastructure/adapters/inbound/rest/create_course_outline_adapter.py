@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from coursesmith import RESOURCES_DIR
 from coursesmith.infrastructure.shared.adapters.lite_llm_adapter import LiteLlmAdapter
 from coursesmith.infrastructure.shared.adapters.prompts_adapter import PromptsAdapter
-from coursesmith.settings import Settings
+from coursesmith.settings import settings
 from coursesmith.use_cases.create_course_outline.course_outline_service import CourseOutlineService
 from coursesmith.use_cases.create_course_outline.models.course_outline import CourseOutline
 
@@ -17,7 +17,6 @@ router = APIRouter(prefix="/courses", tags=["courses"])
 
 @lru_cache
 def get_service() -> CourseOutlineService:
-    settings = Settings()
     prompts_port = PromptsAdapter(base_path=RESOURCES_DIR)
     llm_port = LiteLlmAdapter(
         model=settings.litellm_model,
