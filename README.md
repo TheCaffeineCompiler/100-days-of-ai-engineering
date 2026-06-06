@@ -46,6 +46,8 @@ challenge added.
    LITELLM_RETRIES=3
    LITELLM_TIMEOUT=60
    COURSE_OUTLINE_PROMPT_VERSION=1
+   LOG_JSON_ENABLED=true
+   LOG_LEVEL=INFO
    ```
 
    `LITELLM_MODEL` uses LiteLLM's `provider/model` format. Examples:
@@ -66,6 +68,13 @@ challenge added.
    `COURSE_OUTLINE_PROMPT_VERSION` selects which prompt template under
    `resources/prompts/course_outline/v<N>.prompt.txt` the service uses. See
    [Prompts](#prompts) below.
+
+   `LOG_JSON_ENABLED` (bool) toggles between JSON (production) and a
+   colourised console renderer (local dev). `LOG_LEVEL` is one of `DEBUG`,
+   `INFO`, `WARNING`, `ERROR`, `CRITICAL`. Every request carries a
+   `request_id` (from the inbound `X-Request-ID` header or freshly minted)
+   on every log line — including third-party libraries' stdlib logs — so a
+   single request can be grepped end to end. See [Day 8](docs/day_008.md).
 
    All variables are required — `Settings` is a `pydantic-settings`
    `BaseSettings` with no defaults, so a missing var raises a clear
@@ -204,8 +213,10 @@ gate (failing gates auto-expanded).
 .
 ├── coursesmith/
 │   ├── __init__.py                       # Exports RESOURCES_DIR (repo-relative)
-│   ├── app.py                            # FastAPI composition root
-│   ├── settings.py                       # pydantic-settings BaseSettings (.env-aware)
+│   ├── app.py                            # FastAPI composition root; configures logging at import
+│   ├── settings.py                       # pydantic-settings BaseSettings (.env-aware) + module-level singleton
+│   ├── config/
+│   │   └── logging_config.py             # structlog ↔ stdlib bridge; JSON or pretty console output
 │   ├── use_cases/
 │   │   ├── shared/
 │   │   │   └── ports/
@@ -219,7 +230,8 @@ gate (failing gates auto-expanded).
 │       ├── adapters/
 │       │   └── inbound/
 │       │       └── rest/
-│       │           └── create_course_outline_adapter.py  # POST /courses + POST /courses/stream (SSE)
+│       │           ├── create_course_outline_adapter.py  # POST /courses + POST /courses/stream (SSE)
+│       │           └── middleware.py     # Raw-ASGI LoggingMiddleware; binds request_id to structlog contextvars
 │       └── shared/
 │           └── adapters/
 │               ├── prompts_adapter.py    # File-backed PromptsPort
@@ -243,7 +255,8 @@ gate (failing gates auto-expanded).
 │   ├── day_004.md                        # Day 4 write-up
 │   ├── day_005.md                        # Day 5 write-up
 │   ├── day_006.md                        # Day 6 write-up
-│   └── day_007.md                        # Day 7 write-up
+│   ├── day_007.md                        # Day 7 write-up
+│   └── day_008.md                        # Day 8 write-up
 ├── .github/workflows/
 │   └── ci.yml                            # Lint + format + types + tests on push/PR
 ├── .pre-commit-config.yaml

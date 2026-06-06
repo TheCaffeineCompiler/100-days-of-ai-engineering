@@ -1,8 +1,14 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from coursesmith.config.logging_config import LogLevel
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    # Log settings
+    log_json_enabled: bool
+    log_level: LogLevel
 
     # LiteLLM Settings
     litellm_model: str

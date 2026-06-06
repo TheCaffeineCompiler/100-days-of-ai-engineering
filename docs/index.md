@@ -12,3 +12,4 @@ objective and links to the per-day write-up.
 | 5   | Streaming responses | Stream tokens to the client over SSE via `POST /courses/stream`. | [day_005.md](day_005.md) |
 | 6   | Retries, timeouts & error handling | Make a single LLM call survive transient failures; surface a typed error to the caller. | [day_006.md](day_006.md) |
 | 7   | Config & secrets management | Centralize all configuration into one typed settings object that loads from env/.env and fails fast on missing keys. | [day_007.md](day_007.md) |
+| 8   | Structured logging | Replace prints with structured, correlatable JSON logs; every request carries a `request_id` you can grep end to end. | [day_008.md](day_008.md) |
