@@ -108,6 +108,21 @@ directly.)
   `pydantic.ValidationError` propagates and FastAPI turns it into a 500 — no
   silent fallbacks.
 
+- Query token/cost totals for a request (by `X-Request-ID`):
+
+  ```sh
+  curl -X POST http://localhost:8000/courses \
+       -H 'Content-Type: application/json' \
+       -H 'X-Request-ID: my-run-1' \
+       -d '{"topic": "..."}'
+  curl http://localhost:8000/courses/usage/my-run-1
+  ```
+
+  Returns `{ "prompt": ..., "completion": ..., "cost": ... }` accumulating
+  every LLM call made under that `request_id` (multi-call agent runs roll
+  up to one number). Unknown ids return HTTP 404. In-memory and
+  process-local — resets on restart. See [Day 9](docs/day_009.md).
+
 - Stream the response as SSE (use `curl -N` to disable buffering):
 
   ```sh
@@ -233,9 +248,11 @@ gate (failing gates auto-expanded).
 │       │           ├── create_course_outline_adapter.py  # POST /courses + POST /courses/stream (SSE)
 │       │           └── middleware.py     # Raw-ASGI LoggingMiddleware; binds request_id to structlog contextvars
 │       └── shared/
-│           └── adapters/
-│               ├── prompts_adapter.py    # File-backed PromptsPort
-│               └── lite_llm_adapter.py   # LlmPort impl; Router with retries+timeout, typed error translation
+│           ├── adapters/
+│           │   ├── prompts_adapter.py    # File-backed PromptsPort
+│           │   └── lite_llm_adapter.py   # LlmPort impl; Router with retries+timeout, typed error translation, per-call cost logging
+│           └── utils/
+│               └── usage_tracker.py      # Per-request token/cost accumulator keyed by request_id from structlog contextvar
 ├── resources/
 │   └── prompts/
 │       └── course_outline/
@@ -256,7 +273,8 @@ gate (failing gates auto-expanded).
 │   ├── day_005.md                        # Day 5 write-up
 │   ├── day_006.md                        # Day 6 write-up
 │   ├── day_007.md                        # Day 7 write-up
-│   └── day_008.md                        # Day 8 write-up
+│   ├── day_008.md                        # Day 8 write-up
+│   └── day_009.md                        # Day 9 write-up
 ├── .github/workflows/
 │   └── ci.yml                            # Lint + format + types + tests on push/PR
 ├── .pre-commit-config.yaml

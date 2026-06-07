@@ -7,6 +7,7 @@ from litellm.exceptions import RateLimitError, Timeout
 from pydantic import BaseModel
 
 from coursesmith.infrastructure.shared.adapters.lite_llm_adapter import LiteLlmAdapter
+from coursesmith.infrastructure.shared.utils.usage_tracker import UsageTracker
 from coursesmith.use_cases.shared.ports.llm_port import LlmRateLimitError, LlmTimeoutError
 
 
@@ -17,6 +18,7 @@ class _Schema(BaseModel):
 def _make_adapter() -> LiteLlmAdapter:
     """Construct an adapter with throwaway config; tests patch `_router` directly."""
     return LiteLlmAdapter(
+        usage_tracker=UsageTracker(),
         model="openai/gpt-test",
         api_key="sk-test",
         retries=0,
