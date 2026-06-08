@@ -7,7 +7,7 @@ from litellm.exceptions import RateLimitError, Timeout
 from litellm.router import Router
 from litellm.types.utils import ModelResponse
 
-from coursesmith.infrastructure.shared.utils.usage_tracker import UsageTracker
+from coursesmith.infrastructure.shared.observability.usage_tracker import UsageTracker
 from coursesmith.use_cases.shared.ports.llm_port import (
     LlmPort,
     LlmRateLimitError,

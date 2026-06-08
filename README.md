@@ -156,7 +156,7 @@ addressed by `(name, version)` through a small port/adapter pair:
 
 - **`PromptsPort`** (`coursesmith/use_cases/shared/ports/prompts_port.py`) — the
   interface use-case services depend on.
-- **`PromptsAdapter`** (`coursesmith/infrastructure/shared/adapters/prompts_adapter.py`) —
+- **`PromptsAdapter`** (`coursesmith/infrastructure/shared/adapters/outbound/prompts_adapter.py`) —
   the file-backed implementation. Resolves `(name, version)` to
   `<base_path>/<name>/v<version>.prompt.txt`.
 
@@ -178,12 +178,17 @@ The package follows a hexagonal (ports & adapters) layout under `coursesmith/`:
   Cross-feature interfaces live under `use_cases/shared/ports/`.
 - **`infrastructure/adapters/inbound/<transport>/`** — handlers that translate
   incoming traffic into use-case calls (today: `rest/`).
-- **`infrastructure/shared/adapters/`** — outbound adapters that implement
-  use-case ports (today: file-backed prompts).
+- **`infrastructure/shared/adapters/outbound/`** — outbound adapters that
+  implement use-case ports (today: file-backed prompts, LiteLLM).
+- **`infrastructure/shared/observability/`** — cross-cutting telemetry
+  components (today: in-memory usage tracker).
+- **`composition.py`** — the composition root. Every `Depends`-target
+  factory lives here; routes import from it. The dependency graph reads
+  top-to-bottom in one file.
 - **`settings.py`** — env-driven configuration via `pydantic-settings`,
   reading from `.env` automatically.
-- **`app.py`** — FastAPI composition root. Mounts inbound routers and is the
-  ASGI entry point for `uvicorn` / `fastapi dev`.
+- **`app.py`** — FastAPI ASGI entry point. Mounts inbound routers,
+  configures logging, registers exception handlers.
 
 ## Tests
 
@@ -228,7 +233,8 @@ gate (failing gates auto-expanded).
 .
 ├── coursesmith/
 │   ├── __init__.py                       # Exports RESOURCES_DIR (repo-relative)
-│   ├── app.py                            # FastAPI composition root; configures logging at import
+│   ├── app.py                            # FastAPI ASGI entry point; configures logging at import
+│   ├── composition.py                    # Composition root: every Depends-target factory in one place
 │   ├── settings.py                       # pydantic-settings BaseSettings (.env-aware) + module-level singleton
 │   ├── config/
 │   │   └── logging_config.py             # structlog ↔ stdlib bridge; JSON or pretty console output
@@ -245,19 +251,22 @@ gate (failing gates auto-expanded).
 │       ├── adapters/
 │       │   └── inbound/
 │       │       └── rest/
-│       │           ├── create_course_outline_adapter.py  # POST /courses + POST /courses/stream (SSE)
+│       │           ├── create_course_outline_adapter.py  # POST /courses + POST /courses/stream + GET /courses/usage/{id}
 │       │           └── middleware.py     # Raw-ASGI LoggingMiddleware; binds request_id to structlog contextvars
 │       └── shared/
 │           ├── adapters/
-│           │   ├── prompts_adapter.py    # File-backed PromptsPort
-│           │   └── lite_llm_adapter.py   # LlmPort impl; Router with retries+timeout, typed error translation, per-call cost logging
-│           └── utils/
+│           │   └── outbound/
+│           │       ├── prompts_adapter.py    # File-backed PromptsPort
+│           │       └── lite_llm_adapter.py   # LlmPort impl; Router with retries+timeout, typed error translation, per-call cost logging
+│           └── observability/
 │               └── usage_tracker.py      # Per-request token/cost accumulator keyed by request_id from structlog contextvar
 ├── resources/
 │   └── prompts/
 │       └── course_outline/
 │           └── v1.prompt.txt             # Versioned prompt templates
 ├── tests/                                # Mirrors the package layout
+│   ├── integration/
+│   │   └── test_create_course_outline_endpoint.py  # End-to-end: real composition graph + stub LlmPort → CourseOutline
 │   ├── infrastructure/adapters/inbound/rest/
 │   │   ├── test_create_course_outline_adapter.py
 │   │   └── test_create_course_outline_stream.py
@@ -274,7 +283,8 @@ gate (failing gates auto-expanded).
 │   ├── day_006.md                        # Day 6 write-up
 │   ├── day_007.md                        # Day 7 write-up
 │   ├── day_008.md                        # Day 8 write-up
-│   └── day_009.md                        # Day 9 write-up
+│   ├── day_009.md                        # Day 9 write-up
+│   └── day_010.md                        # Day 10 write-up
 ├── .github/workflows/
 │   └── ci.yml                            # Lint + format + types + tests on push/PR
 ├── .pre-commit-config.yaml

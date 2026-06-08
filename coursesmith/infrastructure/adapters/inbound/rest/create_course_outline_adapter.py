@@ -1,40 +1,18 @@
 from collections.abc import AsyncIterable
-from functools import lru_cache
 
 from fastapi import APIRouter, Depends, Response, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel
 
-from coursesmith import RESOURCES_DIR
-from coursesmith.infrastructure.shared.adapters.lite_llm_adapter import LiteLlmAdapter
-from coursesmith.infrastructure.shared.adapters.prompts_adapter import PromptsAdapter
-from coursesmith.infrastructure.shared.utils.usage_tracker import (
+from coursesmith.composition import get_service, get_usage_tracker
+from coursesmith.infrastructure.shared.observability.usage_tracker import (
     UsageModel,
     UsageTracker,
-    get_usage_tracker,
 )
-from coursesmith.settings import settings
 from coursesmith.use_cases.create_course_outline.course_outline_service import CourseOutlineService
 from coursesmith.use_cases.create_course_outline.models.course_outline import CourseOutline
 
 router = APIRouter(prefix="/courses", tags=["courses"])
-
-
-@lru_cache
-def get_service(usage_tracker: UsageTracker = Depends(get_usage_tracker)) -> CourseOutlineService:
-    prompts_port = PromptsAdapter(base_path=RESOURCES_DIR)
-    llm_port = LiteLlmAdapter(
-        usage_tracker=usage_tracker,
-        model=settings.litellm_model,
-        api_key=settings.litellm_api_key,
-        retries=settings.litellm_retries,
-        timeout=settings.litellm_timeout,
-    )
-    return CourseOutlineService(
-        llm_port=llm_port,
-        prompts_port=prompts_port,
-        prompt_version=settings.course_outline_prompt_version,
-    )
 
 
 class CreateCourseOutlineRequest(BaseModel):

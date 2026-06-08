@@ -1,5 +1,5 @@
 from coursesmith import RESOURCES_DIR
-from coursesmith.infrastructure.shared.adapters.prompts_adapter import PromptsAdapter
+from coursesmith.infrastructure.shared.adapters.outbound.prompts_adapter import PromptsAdapter
 
 
 def test_course_outline_v1_renders_topic():
