@@ -245,8 +245,10 @@ gate (failing gates auto-expanded).
 │   │   │       └── llm_port.py           # LlmPort + typed errors (LlmError/Timeout/RateLimit)
 │   │   └── create_course_outline/
 │   │       ├── course_outline_service.py # Depends on LlmPort + PromptsPort; streams via async generator
-│   │       └── models/
-│   │           └── course_outline.py     # CourseOutline + DayItem Pydantic models
+│   │       ├── models/
+│   │       │   └── course_outline.py     # CourseOutline + DayItem Pydantic models
+│   │       └── tools/
+│   │           └── get_current_time_tool.py  # Pydantic args model + LLM-facing schema + handler (Day 11)
 │   └── infrastructure/
 │       ├── adapters/
 │       │   └── inbound/
@@ -270,9 +272,11 @@ gate (failing gates auto-expanded).
 │   ├── infrastructure/adapters/inbound/rest/
 │   │   ├── test_create_course_outline_adapter.py
 │   │   └── test_create_course_outline_stream.py
-│   └── infrastructure/shared/adapters/
-│       ├── test_prompts_adapter.py
-│       └── test_lite_llm_adapter.py      # Typed-error translation for complete + stream
+│   ├── infrastructure/shared/adapters/
+│   │   ├── test_prompts_adapter.py
+│   │   └── test_lite_llm_adapter.py      # Typed-error translation for complete + stream
+│   └── use_cases/create_course_outline/tools/
+│       └── test_get_current_time_tool.py # Schema shape, default exposure, strftime round-trip
 ├── docs/
 │   ├── index.md                          # Challenge index
 │   ├── day_001.md                        # Day 1 write-up
@@ -284,7 +288,8 @@ gate (failing gates auto-expanded).
 │   ├── day_007.md                        # Day 7 write-up
 │   ├── day_008.md                        # Day 8 write-up
 │   ├── day_009.md                        # Day 9 write-up
-│   └── day_010.md                        # Day 10 write-up
+│   ├── day_010.md                        # Day 10 write-up
+│   └── day_011.md                        # Day 11 write-up
 ├── .github/workflows/
 │   └── ci.yml                            # Lint + format + types + tests on push/PR
 ├── .pre-commit-config.yaml

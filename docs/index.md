@@ -15,3 +15,4 @@ objective and links to the per-day write-up.
 | 8   | Structured logging | Replace prints with structured, correlatable JSON logs; every request carries a `request_id` you can grep end to end. | [day_008.md](day_008.md) |
 | 9   | Token counting & cost tracking | Log prompt/completion tokens and estimated cost on every LLM call; expose a per-request running total via HTTP. | [day_009.md](day_009.md) |
 | 10  | Foundations capstone | Tie Days 1–9 into one clean service: composition root, layered package, end-to-end integration test. No new features. | [day_010.md](day_010.md) |
+| 11  | Define a tool schema | Describe a `get_current_time` tool to the model in JSON-schema form, derived from a single Pydantic args model. | [day_011.md](day_011.md) |
