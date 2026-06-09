@@ -289,7 +289,8 @@ gate (failing gates auto-expanded).
 │   ├── day_008.md                        # Day 8 write-up
 │   ├── day_009.md                        # Day 9 write-up
 │   ├── day_010.md                        # Day 10 write-up
-│   └── day_011.md                        # Day 11 write-up
+│   ├── day_011.md                        # Day 11 write-up
+│   └── day_012.md                        # Day 12 write-up
 ├── .github/workflows/
 │   └── ci.yml                            # Lint + format + types + tests on push/PR
 ├── .pre-commit-config.yaml

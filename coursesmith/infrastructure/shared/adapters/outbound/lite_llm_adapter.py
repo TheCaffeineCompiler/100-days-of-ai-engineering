@@ -43,12 +43,18 @@ class LiteLlmAdapter(LlmPort):
             timeout=timeout,
         )
 
-    async def complete(self, messages: list[dict[str, str]], response_format: type[T]) -> Any:
+    async def complete(
+        self,
+        messages: list[dict[str, str]],
+        response_format: type[T],
+        tools: list[dict[str, Any]] | None = None,
+    ) -> Any:
         try:
             result = await self._router.acompletion(
                 model=self._model,
                 messages=cast(Any, messages),
                 response_format=response_format,
+                tools=tools or [],
             )
             await self._log_llm_costs(messages, result)
             return result

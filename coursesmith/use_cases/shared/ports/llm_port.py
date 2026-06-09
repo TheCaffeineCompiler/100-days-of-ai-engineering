@@ -9,7 +9,12 @@ T = TypeVar("T", bound=BaseModel)
 
 class LlmPort(ABC):
     @abstractmethod
-    async def complete(self, messages: list[dict[str, str]], response_format: type[T]) -> Any: ...
+    async def complete(
+        self,
+        messages: list[dict[str, str]],
+        response_format: type[T],
+        tools: list[dict[str, Any]] | None = None,
+    ) -> Any: ...
 
     @abstractmethod
     def stream(self, messages: list[dict[str, str]]) -> AsyncIterator[Any]: ...

@@ -16,3 +16,4 @@ objective and links to the per-day write-up.
 | 9   | Token counting & cost tracking | Log prompt/completion tokens and estimated cost on every LLM call; expose a per-request running total via HTTP. | [day_009.md](day_009.md) |
 | 10  | Foundations capstone | Tie Days 1–9 into one clean service: composition root, layered package, end-to-end integration test. No new features. | [day_010.md](day_010.md) |
 | 11  | Define a tool schema | Describe a `get_current_time` tool to the model in JSON-schema form, derived from a single Pydantic args model. | [day_011.md](day_011.md) |
+| 12  | Single tool call round-trip | Get the model to request a tool call. Pass the schema in, log the `tool_use` block, don't execute yet — that's Day 13. | [day_012.md](day_012.md) |
