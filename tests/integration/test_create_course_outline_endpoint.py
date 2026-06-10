@@ -35,8 +35,12 @@ class _StubLlmPort(LlmPort):
         self,
         messages: list[dict[str, str]],  # noqa: ARG002
         response_format: type,  # noqa: ARG002
+        tools: list[dict[str, Any]] | None = None,  # noqa: ARG002
     ) -> Any:
-        message = SimpleNamespace(content=_CANNED_OUTLINE.model_dump_json())
+        message = SimpleNamespace(
+            content=_CANNED_OUTLINE.model_dump_json(),
+            tool_calls=None,
+        )
         choice = SimpleNamespace(message=message)
         return SimpleNamespace(choices=[choice])
 

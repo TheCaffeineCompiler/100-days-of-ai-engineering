@@ -1,11 +1,13 @@
 import json
 from collections.abc import AsyncGenerator
+from typing import Any
 
 import structlog
 
 from coursesmith.use_cases.create_course_outline.models.course_outline import CourseOutline
-from coursesmith.use_cases.create_course_outline.tools.get_current_time_tool import (
-    get_current_time_schema,
+from coursesmith.use_cases.create_course_outline.tools import (
+    execute_tool,
+    get_tools,
 )
 from coursesmith.use_cases.shared.ports.llm_port import LlmPort
 from coursesmith.use_cases.shared.ports.prompts_port import PromptsPort
@@ -26,18 +28,33 @@ class CourseOutlineService:
 
     async def create(self, topic: str) -> CourseOutline:
         prompt = self._prompt.format(topic=topic)
-        messages = [{"role": "user", "content": prompt}]
-        result = await self._llm_port.complete(
-            messages=messages, response_format=CourseOutline, tools=[get_current_time_schema()]
-        )
-        tool_calls = result.choices[0].message.tool_calls
-        if tool_calls:
-            for tc in tool_calls:
-                name = tc.function.name
-                params = json.loads(tc.function.arguments)
-                self._logger.info("call_function", tool_name=name, tool_params=params)
-            return CourseOutline(title="n/a", day_items=[])
-        return CourseOutline.model_validate_json(json_data=result.choices[0].message.content or "")
+        messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
+        max_steps = 5
+        while max_steps > 0:
+            max_steps -= 1
+            result = await self._llm_port.complete(
+                messages=messages, response_format=CourseOutline, tools=get_tools()
+            )
+
+            tool_calls = result.choices[0].message.tool_calls
+            if tool_calls:
+                messages.append(result.choices[0].message)
+                for tc in tool_calls:
+                    name = tc.function.name
+                    params = json.loads(tc.function.arguments)
+                    tool_result = execute_tool(name=name, **params)
+                    messages.append(
+                        {
+                            "tool_call_id": tc.id,
+                            "role": "tool",
+                            "name": name,
+                            "content": tool_result,
+                        }
+                    )
+            else:
+                return CourseOutline.model_validate_json(result.choices[0].message.content)
+
+        return CourseOutline(title="n/a", day_items=[])
 
     async def create_stream(self, topic: str) -> AsyncGenerator[str, None]:
         prompt = self._prompt.format(topic=topic)

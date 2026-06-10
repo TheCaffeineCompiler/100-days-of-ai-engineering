@@ -17,3 +17,4 @@ objective and links to the per-day write-up.
 | 10  | Foundations capstone | Tie Days 1–9 into one clean service: composition root, layered package, end-to-end integration test. No new features. | [day_010.md](day_010.md) |
 | 11  | Define a tool schema | Describe a `get_current_time` tool to the model in JSON-schema form, derived from a single Pydantic args model. | [day_011.md](day_011.md) |
 | 12  | Single tool call round-trip | Get the model to request a tool call. Pass the schema in, log the `tool_use` block, don't execute yet — that's Day 13. | [day_012.md](day_012.md) |
+| 13  | Execute the tool & feed the result back | Close the loop: tiny tool registry + an agent loop that runs the requested tool, replies to the model, and returns a populated `CourseOutline`. | [day_013.md](day_013.md) |
