@@ -5,6 +5,7 @@ from coursesmith.config.logging_config import configure_logging
 from coursesmith.infrastructure.adapters.inbound.rest import create_course_outline_adapter
 from coursesmith.infrastructure.adapters.inbound.rest.middleware import LoggingMiddleware
 from coursesmith.settings import settings
+from coursesmith.use_cases.shared.agents.agent import AgentLoopExhaustedError
 from coursesmith.use_cases.shared.ports.llm_port import LlmRateLimitError, LlmTimeoutError
 
 configure_logging(json_logs=settings.log_json_enabled, log_level=settings.log_level)
@@ -21,3 +22,7 @@ async def llm_timeout_handler(_request: Request, exc: Exception) -> JSONResponse
 @app.exception_handler(LlmRateLimitError)
 async def llm_rate_limit_handler(_request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=429, content={"detail": str(exc)})
+
+@app.exception_handler(AgentLoopExhaustedError)
+async def agent_loop_exhausted(_request: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": str(exc)})

@@ -15,13 +15,26 @@ from coursesmith.infrastructure.shared.adapters.outbound.prompts_adapter import 
 from coursesmith.infrastructure.shared.observability.usage_tracker import UsageTracker
 from coursesmith.settings import settings
 from coursesmith.use_cases.create_course_outline.course_outline_service import CourseOutlineService
+from coursesmith.use_cases.create_course_outline.models.course_outline import CourseOutline
+from coursesmith.use_cases.create_course_outline.tools.create_schedule_tool import (
+    CreateScheduleTool,
+)
+from coursesmith.use_cases.create_course_outline.tools.create_title_tool import CreateTitleTool
+from coursesmith.use_cases.create_course_outline.tools.review_course_tool import ReviewCourseTool
+from coursesmith.use_cases.shared.agents.agent import Agent
+from coursesmith.use_cases.shared.agents.agent_tool import AgentTool
 from coursesmith.use_cases.shared.ports.llm_port import LlmPort
 from coursesmith.use_cases.shared.ports.prompts_port import PromptsPort
 
 _usage_tracker: UsageTracker | None = None
 _llm_port: LlmPort | None = None
 _prompts_port: PromptsPort | None = None
+_agent: Agent | None = None
 _service: CourseOutlineService | None = None
+
+_create_title_tool: CreateTitleTool | None = None
+_create_schedule_tool: CreateScheduleTool | None = None
+_review_course_tool: ReviewCourseTool | None = None
 
 
 def get_usage_tracker() -> UsageTracker:
@@ -51,15 +64,78 @@ def get_prompts_port() -> PromptsPort:
     return _prompts_port
 
 
-def get_service(
-    prompts_port: PromptsPort = Depends(get_prompts_port),
+def get_agent(
+    llm_port: LlmPort = Depends(get_llm_port), prompts_port: PromptsPort = Depends(get_prompts_port)
+) -> Agent:
+    global _agent
+    if _agent is None:
+        _agent = Agent(llm_port=llm_port, prompts_port=prompts_port)
+    return _agent
+
+
+def get_create_title_tool(
     llm_port: LlmPort = Depends(get_llm_port),
+    prompts_port: PromptsPort = Depends(get_prompts_port),
+) -> CreateTitleTool:
+    global _create_title_tool
+    if _create_title_tool is None:
+        _create_title_tool = CreateTitleTool(
+            llm_port=llm_port,
+            prompts_port=prompts_port,
+            prompts_name="course_title",
+            prompts_version=settings.create_title_prompt_version,
+        )
+    return _create_title_tool
+
+
+def get_create_schedule_tool(
+    llm_port: LlmPort = Depends(get_llm_port),
+    prompts_port: PromptsPort = Depends(get_prompts_port),
+) -> CreateScheduleTool:
+    global _create_schedule_tool
+    if _create_schedule_tool is None:
+        _create_schedule_tool = CreateScheduleTool(
+            llm_port=llm_port,
+            prompts_port=prompts_port,
+            prompts_name="course_schedule",
+            prompts_version=settings.create_schedule_prompt_version,
+        )
+    return _create_schedule_tool
+
+
+def get_review_course_tool(
+    llm_port: LlmPort = Depends(get_llm_port),
+    prompts_port: PromptsPort = Depends(get_prompts_port),
+) -> ReviewCourseTool:
+    global _review_course_tool
+    if _review_course_tool is None:
+        _review_course_tool = ReviewCourseTool(
+            llm_port=llm_port,
+            prompts_port=prompts_port,
+            prompts_name="review_course",
+            prompts_version=settings.review_course_prompt_version,
+            response_type=CourseOutline,
+        )
+    return _review_course_tool
+
+
+def get_service_tools(
+    create_title_tool: CreateTitleTool = Depends(get_create_title_tool),
+    create_schedule_tool: CreateScheduleTool = Depends(get_create_schedule_tool),
+    review_course_tool: ReviewCourseTool = Depends(get_review_course_tool),
+) -> list[AgentTool]:
+    return [create_title_tool, create_schedule_tool, review_course_tool]
+
+
+def get_service(
+    agent: Agent = Depends(get_agent),
+    tools: list[AgentTool] = Depends(get_service_tools),
 ) -> CourseOutlineService:
     global _service
     if _service is None:
         _service = CourseOutlineService(
-            llm_port=llm_port,
-            prompts_port=prompts_port,
+            agent=agent,
+            tools=tools,
             prompt_version=settings.course_outline_prompt_version,
         )
     return _service

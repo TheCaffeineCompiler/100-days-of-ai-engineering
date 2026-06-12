@@ -2,9 +2,9 @@
 
 Exercises the full POST /courses path — routing, request parsing,
 FastAPI dependency resolution, the use-case service, the file-backed
-prompt loader, and JSON validation — with the LLM stubbed at the
-LlmPort boundary. Asserts the endpoint's response validates against
-CourseOutline.
+prompt loader, the Agent loop, and JSON validation — with the LLM
+stubbed at the LlmPort boundary. Asserts the endpoint's response
+validates against CourseOutline.
 """
 
 from collections.abc import AsyncIterator
@@ -20,6 +20,7 @@ from coursesmith.infrastructure.shared.adapters.outbound.prompts_adapter import 
 from coursesmith.settings import settings
 from coursesmith.use_cases.create_course_outline.course_outline_service import CourseOutlineService
 from coursesmith.use_cases.create_course_outline.models.course_outline import CourseOutline
+from coursesmith.use_cases.shared.agents.agent import Agent
 from coursesmith.use_cases.shared.ports.llm_port import LlmPort
 
 _CANNED_OUTLINE = CourseOutline(
@@ -29,12 +30,12 @@ _CANNED_OUTLINE = CourseOutline(
 
 
 class _StubLlmPort(LlmPort):
-    """Returns a ModelResponse-shaped object whose JSON content parses as a CourseOutline."""
+    """Returns a no-tool-call response whose JSON content parses as a CourseOutline."""
 
     async def complete(
         self,
         messages: list[dict[str, str]],  # noqa: ARG002
-        response_format: type,  # noqa: ARG002
+        response_format: type | None,  # noqa: ARG002
         tools: list[dict[str, Any]] | None = None,  # noqa: ARG002
     ) -> Any:
         message = SimpleNamespace(
@@ -53,15 +54,20 @@ class _StubLlmPort(LlmPort):
 
 
 def _build_service_with_stub_llm() -> CourseOutlineService:
+    """Real Agent + real prompt loader + stub LLM; tools list is empty since the
+    stub immediately returns a final answer (no tool round-trips needed)."""
     return CourseOutlineService(
-        llm_port=_StubLlmPort(),
-        prompts_port=PromptsAdapter(base_path=RESOURCES_DIR),
+        agent=Agent(
+            llm_port=_StubLlmPort(),
+            prompts_port=PromptsAdapter(base_path=RESOURCES_DIR),
+        ),
+        tools=[],
         prompt_version=settings.course_outline_prompt_version,
     )
 
 
 def test_post_courses_returns_validated_course_outline():
-    """End-to-end: real route + service + prompt loader + stub LLM → response parses as CourseOutline."""
+    """End-to-end: real route + service + Agent + prompt loader + stub LLM → response parses as CourseOutline."""
     app.dependency_overrides[get_service] = _build_service_with_stub_llm
     try:
         with TestClient(app) as client:

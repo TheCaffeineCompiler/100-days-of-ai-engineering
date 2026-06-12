@@ -1,43 +1,49 @@
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from coursesmith.settings import settings
-from coursesmith.use_cases.create_course_outline.models.course_outline import CourseOutline, DayItem
+from coursesmith.use_cases.shared.agents.agent_tool import AgentTool
 from coursesmith.use_cases.shared.ports.llm_port import LlmPort
 from coursesmith.use_cases.shared.ports.prompts_port import PromptsPort
-
-PROMPT_NAME = "review_course"
 
 
 class ReviewCourseParams(BaseModel):
     title: str
-    day_items: list[DayItem]
+    content: str = Field(description="joined list of day items")
 
 
-def review_course_schema() -> dict[str, Any]:
-    return {
-        "type": "function",
-        "function": {
-            "name": "review_course",
-            "description": "Call this function to improve the title and schedule of a given course",
-            "parameters": ReviewCourseParams.model_json_schema(),
-        },
-    }
+class ReviewCourseTool(AgentTool[ReviewCourseParams]):
 
+    def __init__(
+        self,
+        llm_port: LlmPort,
+        prompts_port: PromptsPort,
+        prompts_name: str,
+        prompts_version: int,
+        response_type: type[BaseModel] | None = None,
+    ):
+        self._llm_port = llm_port
+        self._prompts_port = prompts_port
+        self._prompts_name = prompts_name
+        self._prompts_version = prompts_version
+        self._response_type = response_type
 
-async def review_course(
-    llm_port: LlmPort,
-    prompts_port: PromptsPort,
-    request: ReviewCourseParams,
-) -> Any:
-    template = prompts_port.get_prompt(
-        name=PROMPT_NAME, version=settings.review_course_prompt_version
-    )
-    content = [d.model_dump_json() for d in request.day_items]
-    prompt = template.format(title=request.title, content="\n".join(content))
-    result = await llm_port.complete(
-        messages=[{"role": "user", "content": prompt}],
-        response_format=CourseOutline,
-    )
-    return result.choices[0].message.content
+    def name(self) -> str:
+        return "review_course"
+
+    def description(self) -> str:
+        return "Call this function to improve the title and schedule of a given course"
+
+    def params_cls(self) -> type[ReviewCourseParams]:
+        return ReviewCourseParams
+
+    async def _execute(self, params: ReviewCourseParams) -> Any:
+        template = self._prompts_port.get_prompt(
+            name=self._prompts_name, version=self._prompts_version
+        )
+        prompt = template.format(title=params.title, content=params.content)
+        result = await self._llm_port.complete(
+            messages=[{"role": "user", "content": prompt}],
+            response_format=self._response_type,
+        )
+        return result.choices[0].message.content

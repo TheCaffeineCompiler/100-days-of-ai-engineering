@@ -247,19 +247,20 @@ gate (failing gates auto-expanded).
 │   │   └── logging_config.py             # structlog ↔ stdlib bridge; JSON or pretty console output
 │   ├── use_cases/
 │   │   ├── shared/
+│   │   │   ├── agents/
+│   │   │   │   ├── agent.py              # Agent loop (run + stream) + AgentLoopExhaustedError (Day 15)
+│   │   │   │   └── agent_tool.py         # AgentTool[TParams] ABC: schema build + boundary validation (Day 15)
 │   │   │   └── ports/
 │   │   │       ├── prompts_port.py       # PromptsPort interface
 │   │   │       └── llm_port.py           # LlmPort + typed errors (LlmError/Timeout/RateLimit)
 │   │   └── create_course_outline/
-│   │       ├── course_outline_service.py # Depends on LlmPort + PromptsPort; streams via async generator
+│   │       ├── course_outline_service.py # Thin wrapper over Agent.run / Agent.stream + JSON validation
 │   │       ├── models/
 │   │       │   └── course_outline.py     # CourseOutline + DayItem Pydantic models
 │   │       └── tools/
-│   │           ├── __init__.py                  # Registry: get_tools() + execute_tool() with per-tool boundary validation (Day 13/14)
-│   │           ├── get_current_time_tool.py     # Pydantic args model + LLM-facing schema + handler (Day 11)
-│   │           ├── create_title_tool.py         # LLM-backed tool: topic → course title (Day 14)
-│   │           ├── create_schedule_tool.py      # LLM-backed tool: title → multi-day schedule (Day 14)
-│   │           └── review_course_tool.py        # LLM-backed tool: title + day_items → improved CourseOutline (Day 14)
+│   │           ├── create_title_tool.py         # AgentTool: topic → course title (Day 14/15)
+│   │           ├── create_schedule_tool.py      # AgentTool: title → multi-day schedule (Day 14/15)
+│   │           └── review_course_tool.py        # AgentTool: title + content → improved CourseOutline (Day 14/15)
 │   └── infrastructure/
 │       ├── adapters/
 │       │   └── inbound/
@@ -293,8 +294,14 @@ gate (failing gates auto-expanded).
 │   ├── infrastructure/shared/adapters/
 │   │   ├── test_prompts_adapter.py
 │   │   └── test_lite_llm_adapter.py      # Typed-error translation for complete + stream
-│   └── use_cases/create_course_outline/tools/
-│       └── test_get_current_time_tool.py # Schema shape, default exposure, strftime round-trip
+│   └── use_cases/
+│       ├── create_course_outline/tools/
+│       │   ├── test_create_title_tool.py     # Schema shape + execute → LLM plumbing
+│       │   ├── test_create_schedule_tool.py  # Schema shape + execute → LLM plumbing
+│       │   └── test_review_course_tool.py    # Schema shape + execute with response_format=CourseOutline
+│       └── shared/agents/
+│           ├── test_agent.py             # run/stream loop: tool dispatch, exhaustion, streaming after tool rounds
+│           └── test_agent_tool.py        # ABC template-method behavior: schema build + boundary validation
 ├── docs/
 │   ├── index.md                          # Challenge index
 │   ├── day_001.md                        # Day 1 write-up
@@ -310,7 +317,8 @@ gate (failing gates auto-expanded).
 │   ├── day_011.md                        # Day 11 write-up
 │   ├── day_012.md                        # Day 12 write-up
 │   ├── day_013.md                        # Day 13 write-up
-│   └── day_014.md                        # Day 14 write-up
+│   ├── day_014.md                        # Day 14 write-up
+│   └── day_015.md                        # Day 15 write-up
 ├── .github/workflows/
 │   └── ci.yml                            # Lint + format + types + tests on push/PR
 ├── .pre-commit-config.yaml

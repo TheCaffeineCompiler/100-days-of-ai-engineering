@@ -19,3 +19,4 @@ objective and links to the per-day write-up.
 | 12  | Single tool call round-trip | Get the model to request a tool call. Pass the schema in, log the `tool_use` block, don't execute yet — that's Day 13. | [day_012.md](day_012.md) |
 | 13  | Execute the tool & feed the result back | Close the loop: tiny tool registry + an agent loop that runs the requested tool, replies to the model, and returns a populated `CourseOutline`. | [day_013.md](day_013.md) |
 | 14  | Multiple tools / tool selection | Register 3+ tools; let the model pick `create_title → create_schedule → review_course` for a single topic. Boundary-validated request models per tool. | [day_014.md](day_014.md) |
+| 15  | The agent loop (think → act → observe) | Extract the loop into a reusable `Agent` + `AgentTool[TParams]` ABC under `use_cases/shared/agents/`; surface a typed `AgentLoopExhaustedError`; redesign streaming for the multi-call shape. | [day_015.md](day_015.md) |
