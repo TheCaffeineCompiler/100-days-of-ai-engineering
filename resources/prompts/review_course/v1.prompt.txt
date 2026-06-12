@@ -1,0 +1,18 @@
+Review and improve the following professional course draft.
+
+Course title:
+{title}
+
+Course content:
+{content}
+
+Your task is to assess whether the course title and content are clear, attractive, coherent, and suitable for a multi-day professional training course.
+
+Improve the draft where useful by:
+
+* making the title more engaging and professional
+* ensuring the course structure builds logically from fundamentals to practical application
+* clarifying vague objectives
+* improving task descriptions so they are practical and action-oriented
+* removing redundancy or overly generic wording
+* keeping the scope realistic for a multi-day course

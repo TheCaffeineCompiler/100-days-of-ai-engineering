@@ -12,7 +12,7 @@ class LlmPort(ABC):
     async def complete(
         self,
         messages: list[dict[str, str]],
-        response_format: type[T],
+        response_format: type[T] | None,
         tools: list[dict[str, Any]] | None = None,
     ) -> Any: ...
 

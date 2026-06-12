@@ -1,0 +1,6 @@
+Create an engaging, professional course title for a multi-day training based on the following topic:
+
+Topic: {topic}
+
+The title should be clear, attractive, and suitable for a professional audience.
+Avoid hype, buzzwords, and overly generic wording. Return only the course title.

@@ -19,5 +19,10 @@ class Settings(BaseSettings):
     # Course Outline Service Settings
     course_outline_prompt_version: int
 
+    # Tool Settings
+    create_title_prompt_version: int
+    create_schedule_prompt_version: int
+    review_course_prompt_version: int
+
 
 settings = Settings()

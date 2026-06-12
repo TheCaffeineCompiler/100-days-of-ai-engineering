@@ -45,7 +45,10 @@ challenge added.
    LITELLM_API_KEY=sk-...
    LITELLM_RETRIES=3
    LITELLM_TIMEOUT=60
-   COURSE_OUTLINE_PROMPT_VERSION=1
+   COURSE_OUTLINE_PROMPT_VERSION=2
+   CREATE_TITLE_PROMPT_VERSION=1
+   CREATE_SCHEDULE_PROMPT_VERSION=1
+   REVIEW_COURSE_PROMPT_VERSION=1
    LOG_JSON_ENABLED=true
    LOG_LEVEL=INFO
    ```
@@ -66,8 +69,12 @@ challenge added.
    (HTTP 429). See [Day 6](docs/day_006.md).
 
    `COURSE_OUTLINE_PROMPT_VERSION` selects which prompt template under
-   `resources/prompts/course_outline/v<N>.prompt.txt` the service uses. See
-   [Prompts](#prompts) below.
+   `resources/prompts/course_outline/v<N>.prompt.txt` the service uses. v1
+   is the single-call template; v2 is the tool-using planner introduced
+   in Day 14. The `CREATE_TITLE_PROMPT_VERSION`,
+   `CREATE_SCHEDULE_PROMPT_VERSION`, and `REVIEW_COURSE_PROMPT_VERSION`
+   vars do the same job for the three LLM-backed tools the planner
+   dispatches to. See [Prompts](#prompts) below.
 
    `LOG_JSON_ENABLED` (bool) toggles between JSON (production) and a
    colourised console renderer (local dev). `LOG_LEVEL` is one of `DEBUG`,
@@ -248,7 +255,11 @@ gate (failing gates auto-expanded).
 │   │       ├── models/
 │   │       │   └── course_outline.py     # CourseOutline + DayItem Pydantic models
 │   │       └── tools/
-│   │           └── get_current_time_tool.py  # Pydantic args model + LLM-facing schema + handler (Day 11)
+│   │           ├── __init__.py                  # Registry: get_tools() + execute_tool() with per-tool boundary validation (Day 13/14)
+│   │           ├── get_current_time_tool.py     # Pydantic args model + LLM-facing schema + handler (Day 11)
+│   │           ├── create_title_tool.py         # LLM-backed tool: topic → course title (Day 14)
+│   │           ├── create_schedule_tool.py      # LLM-backed tool: title → multi-day schedule (Day 14)
+│   │           └── review_course_tool.py        # LLM-backed tool: title + day_items → improved CourseOutline (Day 14)
 │   └── infrastructure/
 │       ├── adapters/
 │       │   └── inbound/
@@ -264,8 +275,15 @@ gate (failing gates auto-expanded).
 │               └── usage_tracker.py      # Per-request token/cost accumulator keyed by request_id from structlog contextvar
 ├── resources/
 │   └── prompts/
-│       └── course_outline/
-│           └── v1.prompt.txt             # Versioned prompt templates
+│       ├── course_outline/
+│       │   ├── v1.prompt.txt             # Single-call template (no tools)
+│       │   └── v2.prompt.txt             # Tool-using planner prompt (Day 14)
+│       ├── course_title/
+│       │   └── v1.prompt.txt             # Prompt for the create_title tool (Day 14)
+│       ├── course_schedule/
+│       │   └── v1.prompt.txt             # Prompt for the create_schedule tool (Day 14)
+│       └── review_course/
+│           └── v1.prompt.txt             # Prompt for the review_course tool (Day 14)
 ├── tests/                                # Mirrors the package layout
 │   ├── integration/
 │   │   └── test_create_course_outline_endpoint.py  # End-to-end: real composition graph + stub LlmPort → CourseOutline
@@ -291,7 +309,8 @@ gate (failing gates auto-expanded).
 │   ├── day_010.md                        # Day 10 write-up
 │   ├── day_011.md                        # Day 11 write-up
 │   ├── day_012.md                        # Day 12 write-up
-│   └── day_013.md                        # Day 13 write-up
+│   ├── day_013.md                        # Day 13 write-up
+│   └── day_014.md                        # Day 14 write-up
 ├── .github/workflows/
 │   └── ci.yml                            # Lint + format + types + tests on push/PR
 ├── .pre-commit-config.yaml

@@ -23,17 +23,19 @@ class CourseOutlineService:
         prompt_version: int,
     ):
         self._llm_port = llm_port
+        self._prompts_port = prompts_port
         self._prompt = prompts_port.get_prompt(name=self.PROMPT_NAME, version=prompt_version)
         self._logger = structlog.get_logger()
 
     async def create(self, topic: str) -> CourseOutline:
         prompt = self._prompt.format(topic=topic)
         messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
+        tools = get_tools()
         max_steps = 5
         while max_steps > 0:
             max_steps -= 1
             result = await self._llm_port.complete(
-                messages=messages, response_format=CourseOutline, tools=get_tools()
+                messages=messages, response_format=CourseOutline, tools=tools
             )
 
             tool_calls = result.choices[0].message.tool_calls
@@ -42,7 +44,13 @@ class CourseOutlineService:
                 for tc in tool_calls:
                     name = tc.function.name
                     params = json.loads(tc.function.arguments)
-                    tool_result = execute_tool(name=name, **params)
+                    self._logger.info("executing_tool", tool_name=name)
+                    tool_result = await execute_tool(
+                        name=name,
+                        llm_port=self._llm_port,
+                        prompts_port=self._prompts_port,
+                        **params,
+                    )
                     messages.append(
                         {
                             "tool_call_id": tc.id,
@@ -54,6 +62,9 @@ class CourseOutlineService:
             else:
                 return CourseOutline.model_validate_json(result.choices[0].message.content)
 
+        self._logger.warning(
+            "Agent loop has exhausted max_steps and, therefore, returns an empty object."
+        )
         return CourseOutline(title="n/a", day_items=[])
 
     async def create_stream(self, topic: str) -> AsyncGenerator[str, None]:
