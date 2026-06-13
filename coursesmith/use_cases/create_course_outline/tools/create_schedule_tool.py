@@ -12,7 +12,6 @@ class CreateScheduleParams(BaseModel):
 
 
 class CreateScheduleTool(AgentTool[CreateScheduleParams]):
-
     def __init__(
         self,
         llm_port: LlmPort,

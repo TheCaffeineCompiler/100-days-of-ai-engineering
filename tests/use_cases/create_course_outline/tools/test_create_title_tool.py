@@ -42,7 +42,8 @@ class _RecordingLlmPort(LlmPort):
         )
 
     async def stream(  # pragma: no cover
-        self, messages: list[dict[str, str]]  # noqa: ARG002
+        self,
+        messages: list[dict[str, str]],  # noqa: ARG002
     ) -> AsyncIterator[Any]:
         if False:
             yield

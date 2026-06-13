@@ -248,7 +248,7 @@ gate (failing gates auto-expanded).
 │   ├── use_cases/
 │   │   ├── shared/
 │   │   │   ├── agents/
-│   │   │   │   ├── agent.py              # Agent loop (run + stream) + AgentLoopExhaustedError (Day 15)
+│   │   │   │   ├── agent.py              # Agent loop (run + stream) with step/cost/time budgets; AgentResult + AgentLoopExhaustedError (Day 15/16)
 │   │   │   │   └── agent_tool.py         # AgentTool[TParams] ABC: schema build + boundary validation (Day 15)
 │   │   │   └── ports/
 │   │   │       ├── prompts_port.py       # PromptsPort interface
@@ -318,7 +318,8 @@ gate (failing gates auto-expanded).
 │   ├── day_012.md                        # Day 12 write-up
 │   ├── day_013.md                        # Day 13 write-up
 │   ├── day_014.md                        # Day 14 write-up
-│   └── day_015.md                        # Day 15 write-up
+│   ├── day_015.md                        # Day 15 write-up
+│   └── day_016.md                        # Day 16 write-up
 ├── .github/workflows/
 │   └── ci.yml                            # Lint + format + types + tests on push/PR
 ├── .pre-commit-config.yaml

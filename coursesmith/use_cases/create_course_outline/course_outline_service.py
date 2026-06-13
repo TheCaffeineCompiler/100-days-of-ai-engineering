@@ -1,4 +1,5 @@
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any, cast
 
 import structlog
 
@@ -11,7 +12,7 @@ class CourseOutlineService:
     def __init__(
         self,
         agent: Agent,
-        tools: list[AgentTool],
+        tools: list[AgentTool[Any]],
         prompt_version: int,
     ):
         self._agent = agent
@@ -22,14 +23,14 @@ class CourseOutlineService:
 
     async def create(self, topic: str) -> CourseOutline:
         params = {"topic": topic}
-        result = await self._agent.run(
+        agent_result = await self._agent.run(
             prompt_name=self._prompt_name,
             prompt_version=self._prompt_version,
             tools=self._tools,
             prompt_params=params,
             response_format=CourseOutline,
         )
-        return CourseOutline.model_validate_json(result)
+        return CourseOutline.model_validate_json(cast(str, agent_result.result))
 
     async def create_stream(self, topic: str) -> AsyncGenerator[str, None]:
         params = {"topic": topic}

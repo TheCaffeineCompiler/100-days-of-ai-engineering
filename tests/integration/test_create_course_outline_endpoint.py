@@ -17,6 +17,7 @@ from coursesmith import RESOURCES_DIR
 from coursesmith.app import app
 from coursesmith.composition import get_service
 from coursesmith.infrastructure.shared.adapters.outbound.prompts_adapter import PromptsAdapter
+from coursesmith.infrastructure.shared.observability.usage_tracker import UsageTracker
 from coursesmith.settings import settings
 from coursesmith.use_cases.create_course_outline.course_outline_service import CourseOutlineService
 from coursesmith.use_cases.create_course_outline.models.course_outline import CourseOutline
@@ -60,6 +61,7 @@ def _build_service_with_stub_llm() -> CourseOutlineService:
         agent=Agent(
             llm_port=_StubLlmPort(),
             prompts_port=PromptsAdapter(base_path=RESOURCES_DIR),
+            usage_tracker=UsageTracker(),
         ),
         tools=[],
         prompt_version=settings.course_outline_prompt_version,

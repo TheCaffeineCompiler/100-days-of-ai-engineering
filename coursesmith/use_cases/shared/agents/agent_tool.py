@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from pydantic import BaseModel
 
-TParams = TypeVar("TParams", bound=BaseModel)
 
-class AgentTool(ABC, Generic[TParams]):
+class AgentTool[TParams: BaseModel](ABC):
     @abstractmethod
     def name(self) -> str: ...
 
@@ -33,4 +32,3 @@ class AgentTool(ABC, Generic[TParams]):
 
     async def execute(self, args: dict[str, Any]) -> Any:
         return await self._execute(self.params_cls().model_validate(args))
-

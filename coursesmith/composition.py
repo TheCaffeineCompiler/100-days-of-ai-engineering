@@ -7,6 +7,8 @@ markers — that lets FastAPI swap them out via `app.dependency_overrides`
 in tests.
 """
 
+from typing import Any
+
 from fastapi import Depends
 
 from coursesmith import RESOURCES_DIR
@@ -65,11 +67,17 @@ def get_prompts_port() -> PromptsPort:
 
 
 def get_agent(
-    llm_port: LlmPort = Depends(get_llm_port), prompts_port: PromptsPort = Depends(get_prompts_port)
+    llm_port: LlmPort = Depends(get_llm_port),
+    prompts_port: PromptsPort = Depends(get_prompts_port),
+    usage_tracker: UsageTracker = Depends(get_usage_tracker),
 ) -> Agent:
     global _agent
     if _agent is None:
-        _agent = Agent(llm_port=llm_port, prompts_port=prompts_port)
+        _agent = Agent(
+            llm_port=llm_port,
+            prompts_port=prompts_port,
+            usage_tracker=usage_tracker,
+        )
     return _agent
 
 
@@ -123,13 +131,13 @@ def get_service_tools(
     create_title_tool: CreateTitleTool = Depends(get_create_title_tool),
     create_schedule_tool: CreateScheduleTool = Depends(get_create_schedule_tool),
     review_course_tool: ReviewCourseTool = Depends(get_review_course_tool),
-) -> list[AgentTool]:
+) -> list[AgentTool[Any]]:
     return [create_title_tool, create_schedule_tool, review_course_tool]
 
 
 def get_service(
     agent: Agent = Depends(get_agent),
-    tools: list[AgentTool] = Depends(get_service_tools),
+    tools: list[AgentTool[Any]] = Depends(get_service_tools),
 ) -> CourseOutlineService:
     global _service
     if _service is None:

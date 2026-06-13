@@ -13,7 +13,6 @@ class ReviewCourseParams(BaseModel):
 
 
 class ReviewCourseTool(AgentTool[ReviewCourseParams]):
-
     def __init__(
         self,
         llm_port: LlmPort,

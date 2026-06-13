@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from coursesmith.use_cases.shared.agents.agent_tool import AgentTool, TParams
+from coursesmith.use_cases.shared.agents.agent_tool import AgentTool
 from coursesmith.use_cases.shared.ports.llm_port import LlmPort
 from coursesmith.use_cases.shared.ports.prompts_port import PromptsPort
 
@@ -12,7 +12,6 @@ class CreateTitleParams(BaseModel):
 
 
 class CreateTitleTool(AgentTool[CreateTitleParams]):
-
     def __init__(
         self,
         llm_port: LlmPort,
