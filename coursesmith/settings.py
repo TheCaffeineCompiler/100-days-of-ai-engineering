@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     # Tool Settings
     create_title_prompt_version: int
     create_schedule_prompt_version: int
+    create_daily_outline_prompt_version: int
+    create_daily_quiz_prompt_version: int
     review_course_prompt_version: int
 
 

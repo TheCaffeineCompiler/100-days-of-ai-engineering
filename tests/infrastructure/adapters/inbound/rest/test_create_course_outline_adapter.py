@@ -11,12 +11,18 @@ from coursesmith.use_cases.create_course_outline.models.course_outline import Co
 
 
 def test_post_courses_returns_course_outline_json():
-    fake = SimpleNamespace(create=AsyncMock(return_value=CourseOutline(title="x", day_items=[])))
+    outline = CourseOutline(title="x", day_items=[], daily_outlines=[], daily_quizzes=[])
+    fake = SimpleNamespace(create=AsyncMock(return_value=outline))
     app.dependency_overrides[get_service] = lambda: fake
     try:
         with TestClient(app) as client:
             resp = client.post("/courses", json={"topic": "AI engineering"})
         assert resp.status_code == 200
-        assert resp.json() == {"title": "x", "day_items": []}
+        assert resp.json() == {
+            "title": "x",
+            "day_items": [],
+            "daily_outlines": [],
+            "daily_quizzes": [],
+        }
     finally:
         app.dependency_overrides.clear()

@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from types import SimpleNamespace
 from typing import Any
 
+from coursesmith.use_cases.create_course_outline.models.course_outline import Schedule
 from coursesmith.use_cases.create_course_outline.tools.create_schedule_tool import (
     CreateScheduleParams,
     CreateScheduleTool,
@@ -82,6 +83,6 @@ def test_execute_renders_prompt_and_returns_llm_content():
     assert result == "Day 1: ...\nDay 2: ..."
     assert prompts.calls == [("course_schedule", 1)]
     assert llm.calls[0]["messages"] == [{"role": "user", "content": "Title: Intro to git"}]
-    # Schedule output is free text — `response_format` must be None, otherwise the
-    # schedule sub-LLM would be coerced into producing the final CourseOutline shape.
-    assert llm.calls[0]["response_format"] is None
+    # Schedule output is structured — the sub-LLM is coerced into the Schedule shape so
+    # the daily-outline / daily-quiz tools can consume it as typed input downstream.
+    assert llm.calls[0]["response_format"] is Schedule

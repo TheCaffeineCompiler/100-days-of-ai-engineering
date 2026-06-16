@@ -29,6 +29,8 @@ class CourseOutlineService:
             tools=self._tools,
             prompt_params=params,
             response_format=CourseOutline,
+            max_steps=7,
+            max_time_in_sec=60,
         )
         return CourseOutline.model_validate_json(cast(str, agent_result.result))
 

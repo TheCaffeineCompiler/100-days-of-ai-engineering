@@ -27,6 +27,8 @@ from coursesmith.use_cases.shared.ports.llm_port import LlmPort
 _CANNED_OUTLINE = CourseOutline(
     title="Two-day intro to git",
     day_items=[],
+    daily_outlines=[],
+    daily_quizzes=[],
 )
 
 

@@ -1,0 +1,11 @@
+Create clear, professional daily course outlines for a multi-day training based on the following schedule:
+
+Schedule:
+{schedule}
+
+For each day, create a concise outline that summarizes the learning focus and main topics covered that day.
+
+Each daily outline should be suitable for a professional audience, practical, and easy to understand.
+Avoid hype, buzzwords, and overly generic wording.
+
+Return only a list of daily course outlines.

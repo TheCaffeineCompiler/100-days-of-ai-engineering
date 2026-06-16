@@ -59,11 +59,19 @@ def _text_response(content: str) -> Any:
 
 def _tool_call_response(tool_name: str, arguments: dict[str, Any], call_id: str = "c1") -> Any:
     """Shape a ModelResponse whose assistant message requests one tool call."""
-    tc = SimpleNamespace(
-        id=call_id,
-        function=SimpleNamespace(name=tool_name, arguments=json.dumps(arguments)),
-    )
-    message = SimpleNamespace(content=None, tool_calls=[tc])
+    return _tool_calls_response([(tool_name, arguments, call_id)])
+
+
+def _tool_calls_response(calls: list[tuple[str, dict[str, Any], str]]) -> Any:
+    """Shape a ModelResponse whose assistant message requests several tool calls in one turn."""
+    tcs = [
+        SimpleNamespace(
+            id=call_id,
+            function=SimpleNamespace(name=name, arguments=json.dumps(args)),
+        )
+        for name, args, call_id in calls
+    ]
+    message = SimpleNamespace(content=None, tool_calls=tcs)
     return SimpleNamespace(choices=[SimpleNamespace(message=message)])
 
 
@@ -123,6 +131,48 @@ class _RecordingTool(AgentTool[_StubParams]):
     async def _execute(self, params: _StubParams) -> Any:
         self.calls.append(params)
         return self._result
+
+
+class _SlowTool(AgentTool[_StubParams]):
+    """Tool whose `_execute` sleeps `delay` seconds before returning a canned string."""
+
+    def __init__(self, tool_name: str, delay: float, result: str = "ok") -> None:
+        self._name = tool_name
+        self._delay = delay
+        self._result = result
+
+    def name(self) -> str:
+        return self._name
+
+    def description(self) -> str:
+        return f"slow tool {self._name}"
+
+    def params_cls(self) -> type[_StubParams]:
+        return _StubParams
+
+    async def _execute(self, params: _StubParams) -> Any:  # noqa: ARG002
+        await asyncio.sleep(self._delay)
+        return self._result
+
+
+class _FailingTool(AgentTool[_StubParams]):
+    """Tool whose `_execute` always raises — used to verify failure isolation."""
+
+    def __init__(self, tool_name: str, error_message: str = "boom") -> None:
+        self._name = tool_name
+        self._error_message = error_message
+
+    def name(self) -> str:
+        return self._name
+
+    def description(self) -> str:
+        return f"failing tool {self._name}"
+
+    def params_cls(self) -> type[_StubParams]:
+        return _StubParams
+
+    async def _execute(self, params: _StubParams) -> Any:  # noqa: ARG002
+        raise RuntimeError(self._error_message)
 
 
 def _make_agent(llm: LlmPort, *, cost_in_dollars: float = 0.0) -> Agent:
@@ -282,6 +332,109 @@ def test_run_raises_with_timeout_exceeded_when_wall_clock_budget_is_zero():
     assert payload.stop_reason == "timeout_exceeded"
     assert payload.result is None
     assert len(llm.complete_calls) == 0
+
+
+# --- parallel tool calls -------------------------------------------------
+
+
+def test_run_executes_parallel_tool_calls_concurrently():
+    """Two slow tools requested in one turn should overlap, not serialize."""
+    slow_a = _SlowTool(tool_name="slow_a", delay=0.15, result="A")
+    slow_b = _SlowTool(tool_name="slow_b", delay=0.15, result="B")
+    llm = _CountingLlmPort(
+        [
+            _tool_calls_response(
+                [
+                    ("slow_a", {"title": "x"}, "c1"),
+                    ("slow_b", {"title": "y"}, "c2"),
+                ]
+            ),
+            _text_response("done"),
+        ]
+    )
+    agent = _make_agent(llm)
+
+    async def _run_and_time() -> float:
+        start = asyncio.get_event_loop().time()
+        await agent.run(
+            prompt_name="course_outline",
+            prompt_version=1,
+            tools=[slow_a, slow_b],
+            prompt_params={"topic": "git"},
+        )
+        return asyncio.get_event_loop().time() - start
+
+    elapsed = asyncio.run(_run_and_time())
+    # Concurrent: ~0.15s. Serial would be ~0.30s. 0.25s gives generous CI headroom.
+    assert elapsed < 0.25, f"tools appear to have run serially (elapsed={elapsed:.3f}s)"
+
+
+def test_run_isolates_failing_tool_call_and_reports_error_to_model():
+    """If one of two parallel tool calls raises, the sibling still runs and the
+    model gets a `tool` message tied to *both* tool_call_ids."""
+    good = _RecordingTool(tool_name="good_tool", result="ok-result")
+    bad = _FailingTool(tool_name="bad_tool", error_message="kaboom")
+    llm = _CountingLlmPort(
+        [
+            _tool_calls_response(
+                [
+                    ("good_tool", {"title": "x"}, "c1"),
+                    ("bad_tool", {"title": "y"}, "c2"),
+                ]
+            ),
+            _text_response("final"),
+        ]
+    )
+    agent = _make_agent(llm)
+
+    result = asyncio.run(
+        agent.run(
+            prompt_name="course_outline",
+            prompt_version=1,
+            tools=[good, bad],
+            prompt_params={"topic": "git"},
+        )
+    )
+
+    assert result.stop_reason == "finished"
+    assert good.calls == [_StubParams(title="x")]
+    second_messages = llm.complete_calls[1]["messages"]
+    tool_replies = [m for m in second_messages if isinstance(m, dict) and m.get("role") == "tool"]
+    by_id = {m["tool_call_id"]: m for m in tool_replies}
+    assert set(by_id.keys()) == {"c1", "c2"}
+    assert by_id["c1"]["content"] == "ok-result"
+    error_payload = json.loads(by_id["c2"]["content"])
+    assert "kaboom" in error_payload["error"]
+
+
+def test_run_reports_unknown_tool_as_error_tied_to_tool_call_id():
+    """If the model requests a tool that isn't registered, the agent must still
+    answer the tool_call_id with an error envelope — otherwise the next request
+    is rejected for missing a tool result."""
+    llm = _CountingLlmPort(
+        [
+            _tool_call_response("does_not_exist", {"title": "x"}, call_id="c1"),
+            _text_response("recovered"),
+        ]
+    )
+    agent = _make_agent(llm)
+
+    result = asyncio.run(
+        agent.run(
+            prompt_name="course_outline",
+            prompt_version=1,
+            tools=[],
+            prompt_params={"topic": "git"},
+        )
+    )
+
+    assert result.stop_reason == "finished"
+    second_messages = llm.complete_calls[1]["messages"]
+    tool_replies = [m for m in second_messages if isinstance(m, dict) and m.get("role") == "tool"]
+    assert len(tool_replies) == 1
+    assert tool_replies[0]["tool_call_id"] == "c1"
+    error_payload = json.loads(tool_replies[0]["content"])
+    assert "does_not_exist" in error_payload["error"]
 
 
 # --- stream() ------------------------------------------------------------

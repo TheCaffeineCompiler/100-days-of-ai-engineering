@@ -18,6 +18,12 @@ from coursesmith.infrastructure.shared.observability.usage_tracker import UsageT
 from coursesmith.settings import settings
 from coursesmith.use_cases.create_course_outline.course_outline_service import CourseOutlineService
 from coursesmith.use_cases.create_course_outline.models.course_outline import CourseOutline
+from coursesmith.use_cases.create_course_outline.tools.create_daily_outline_tool import (
+    CreateDailyOutlineTool,
+)
+from coursesmith.use_cases.create_course_outline.tools.create_daily_quiz_tool import (
+    CreateDailyQuizTool,
+)
 from coursesmith.use_cases.create_course_outline.tools.create_schedule_tool import (
     CreateScheduleTool,
 )
@@ -36,6 +42,8 @@ _service: CourseOutlineService | None = None
 
 _create_title_tool: CreateTitleTool | None = None
 _create_schedule_tool: CreateScheduleTool | None = None
+_create_daily_outline_tool: CreateDailyOutlineTool | None = None
+_create_daily_quiz_tool: CreateDailyQuizTool | None = None
 _review_course_tool: ReviewCourseTool | None = None
 
 
@@ -111,6 +119,36 @@ def get_create_schedule_tool(
     return _create_schedule_tool
 
 
+def get_create_daily_outline_tool(
+    llm_port: LlmPort = Depends(get_llm_port),
+    prompts_port: PromptsPort = Depends(get_prompts_port),
+) -> CreateDailyOutlineTool:
+    global _create_daily_outline_tool
+    if _create_daily_outline_tool is None:
+        _create_daily_outline_tool = CreateDailyOutlineTool(
+            llm_port=llm_port,
+            prompts_port=prompts_port,
+            prompts_name="create_daily_outline",
+            prompts_version=settings.create_daily_outline_prompt_version,
+        )
+    return _create_daily_outline_tool
+
+
+def get_create_daily_quiz_tool(
+    llm_port: LlmPort = Depends(get_llm_port),
+    prompts_port: PromptsPort = Depends(get_prompts_port),
+) -> CreateDailyQuizTool:
+    global _create_daily_quiz_tool
+    if _create_daily_quiz_tool is None:
+        _create_daily_quiz_tool = CreateDailyQuizTool(
+            llm_port=llm_port,
+            prompts_port=prompts_port,
+            prompts_name="create_daily_quiz",
+            prompts_version=settings.create_daily_quiz_prompt_version,
+        )
+    return _create_daily_quiz_tool
+
+
 def get_review_course_tool(
     llm_port: LlmPort = Depends(get_llm_port),
     prompts_port: PromptsPort = Depends(get_prompts_port),
@@ -130,9 +168,17 @@ def get_review_course_tool(
 def get_service_tools(
     create_title_tool: CreateTitleTool = Depends(get_create_title_tool),
     create_schedule_tool: CreateScheduleTool = Depends(get_create_schedule_tool),
+    create_daily_outline_tool: CreateDailyOutlineTool = Depends(get_create_daily_outline_tool),
+    create_daily_quiz_tool: CreateDailyQuizTool = Depends(get_create_daily_quiz_tool),
     review_course_tool: ReviewCourseTool = Depends(get_review_course_tool),
 ) -> list[AgentTool[Any]]:
-    return [create_title_tool, create_schedule_tool, review_course_tool]
+    return [
+        create_title_tool,
+        create_schedule_tool,
+        review_course_tool,
+        create_daily_quiz_tool,
+        create_daily_outline_tool,
+    ]
 
 
 def get_service(

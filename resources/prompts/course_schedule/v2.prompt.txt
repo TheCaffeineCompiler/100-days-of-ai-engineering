@@ -1,0 +1,15 @@
+Create a multi-day professional course schedule based on the following course title:
+
+Course title: {title}
+
+The schedule should be suitable for a structured professional training course.
+
+Each day should include:
+
+* a clear day title
+* a learning objective per day
+
+Ensure the days build logically on each other, starting with fundamentals and progressing toward practical application.
+Keep the schedule focused, realistic, and appropriate for a multi-day course.
+
+Return only the course schedule in a structured format.

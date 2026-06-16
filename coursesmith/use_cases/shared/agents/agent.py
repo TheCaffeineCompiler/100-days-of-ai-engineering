@@ -1,3 +1,4 @@
+import asyncio
 import json
 import time
 from collections.abc import AsyncIterator
@@ -68,7 +69,7 @@ class Agent:
 
             tool_calls = result.choices[0].message.tool_calls
             if tool_calls:
-                await self._handle_tool_call(messages, result, tool_calls, tools)
+                await self._handle_tool_calls(messages, result, tool_calls, tools)
             else:
                 return AgentResult(stop_reason="finished", result=result.choices[0].message.content)
 
@@ -104,7 +105,7 @@ class Agent:
 
             tool_calls = result.choices[0].message.tool_calls
             if tool_calls:
-                await self._handle_tool_call(messages, result, tool_calls, tools)
+                await self._handle_tool_calls(messages, result, tool_calls, tools)
             else:
                 async for chunk in self._llm_port.stream(messages=messages):
                     content = chunk.choices[0].delta.content
@@ -136,7 +137,7 @@ class Agent:
         usage = self._usage_tracker.snapshot(request_id)
         return usage.cost * 100 if usage else 0.0
 
-    async def _handle_tool_call(
+    async def _handle_tool_calls(
         self,
         messages: list[dict[str, Any]],
         result: Any,
@@ -144,18 +145,35 @@ class Agent:
         tools: list[AgentTool[Any]],
     ) -> None:
         messages.append(result.choices[0].message)
-        for tc in tool_calls:
-            name = tc.function.name
+        tool_messages = await asyncio.gather(
+            *(self._handle_tool_call(tc, tools) for tc in tool_calls)
+        )
+        messages += tool_messages
+
+    async def _handle_tool_call(self, tc: Any, tools: list[AgentTool[Any]]) -> dict[str, Any]:
+        name = tc.function.name
+        self._logger.info("executing_tool", tool_name=name)
+        tool = next((t for t in tools if t.get_name() == name), None)
+        if tool is None:
+            return self._tool_error_message(tc, name, f"unknown tool: {name}")
+        try:
             params = json.loads(tc.function.arguments)
-            self._logger.info("executing_tool", tool_name=name)
-            for tool in tools:
-                if tool.get_name() == name:
-                    tool_result = await tool.execute(params)
-                    messages.append(
-                        {
-                            "tool_call_id": tc.id,
-                            "role": "tool",
-                            "name": name,
-                            "content": tool_result,
-                        }
-                    )
+            content = await tool.execute(params)
+        except Exception as exc:
+            self._logger.warning("tool_execution_failed", tool_name=name, error=str(exc))
+            return self._tool_error_message(tc, name, str(exc))
+        return {
+            "tool_call_id": tc.id,
+            "role": "tool",
+            "name": name,
+            "content": content,
+        }
+
+    @staticmethod
+    def _tool_error_message(tc: Any, name: str, error: str) -> dict[str, Any]:
+        return {
+            "tool_call_id": tc.id,
+            "role": "tool",
+            "name": name,
+            "content": json.dumps({"error": error}),
+        }

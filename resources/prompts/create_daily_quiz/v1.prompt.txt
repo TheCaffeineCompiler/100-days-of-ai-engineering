@@ -1,0 +1,16 @@
+Create a clear, professional daily quiz for a multi-day training based on the following daily course outline:
+
+Schedule:
+{schedule}
+
+Create quiz questions that test the key concepts covered in the outline.
+
+Each quiz question should include:
+- question: a clear question for the learner
+- answer_options: an array of possible answers
+- correct_answer: the zero-based index of the correct answer in the answer_options array
+
+The questions should be practical, unambiguous, and suitable for a professional audience.
+Avoid trick questions, overly obvious answers, and vague wording.
+
+Return only the list of quiz questions.
